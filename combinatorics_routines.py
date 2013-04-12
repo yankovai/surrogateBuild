@@ -181,4 +181,4 @@ def enumerate_upto_number_nodes(d,bin_levels,quad_type):
                 p = 0
                 # Valid component
                 tensor_components += [list(s)]
-    return collect_components
+    return collect_components[0]

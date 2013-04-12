@@ -1,9 +1,33 @@
 import numpy as np
+from initialize_surrogate import Hypercube
 
-class Problem_Function:
+class Problem_Function(Hypercube):
     """
+    Contains the function for which a surrogate model is desired along with
+    information about the input variables.
     """
-    def __init__(self):
+    
+    def __init__(self,dactive):
+        """
+        Parameters
+        ----------
+        d : int
+            Number of dimensions in the function. Put another way, the number of
+            inputs that go into the function.
+        mu : float array
+            Mean of all input variables.
+        std : float array
+            Standard deviation of all input variables.
+        corrmatrix : float array
+            Correlation matrix for the input variables.
+        covmatrix : float array
+            Covariance matrix for the input variables.
+        dactive : int list
+            A list of dimensions [1,2,3,...,k] that are not anchored, meaning
+            their values are free to change. All other dimensions are fixed at
+            the anchor value.
+        """
+        
         self.d = 3
         self.mu = np.array([.25, 1.25, .75])
         self.std = .05*self.mu
@@ -18,15 +42,26 @@ class Problem_Function:
             for j in range(0,self.d):
                 covmatrix[i,j] = self.corrmatrix[i,j]*s[i]*s[j]
         self.covmatrix = covmatrix
-
-    def __call__(self,x):
+        self.dactive = dactive
+        
+        Hypercube.__init__(self)
+        self.dactive_covariance()
+        
+    def evalf_unnormalized_x(self,x):
+        """
+        Parameters
+        ----------
+        x : float array
+            The point at which the function is to be evaluated.
+            
+        Returns
+        -------
+        f(x) : float
+            Function value at x.
+        """
+        
         return .3*np.power(x[0],3) + np.cos(x[1]) + np.exp(x[2])
         
 
 
-
-
-
-
-        
-        
+      

@@ -1,33 +1,31 @@
-from problem_function import Problem_Function
 import numpy as np
 
-class Initialize_Problem(Problem_Function):
+class Hypercube:
     """
-    Absorbs function information and spawns additional parameters depending
-    on the function information. An initializing routine that sets the stage for
-    all proceeding calculations.
+    Includes routines that should be absorbed by the function that is to be
+    interpolated. Mainly, these routines include the ability to map points from
+    the hypercube to the function's parameter space. Also, in 'call' the
+    function can be evaluated in specified dimensions only, the other dimensions
+    taking on the value of the anchor point. 
     """
     
     def __init__(self):
         """
-        Returns
-        -------
-        quad_type : string
-            Determines the absissas used for creating the surrogate model.
-            Options are either 'gp' for Gauss-Patterson, or 'cc' for Clenshaw-
-            Curtis.
+        Parameters
+        ----------
         bounds : integer array
             Determines how large to make the hypercube on which the surrogate
             will be based on. For each dimension, the value of bounds determines
             how many standard deviations from the mean the hypercube will extend.
+        quad_type : string
+            Determines the abscissas used in building the surrogate. Use either
+            'gp' for Gauss-Patterson or 'cc' for Clenshaw-Curtis.
         """
-        # Include convergence criteria and stuff like that later
-        Problem_Function.__init__(self)
 
-        self.quad_type = 'gp'
         self.bounds = 6.*np.ones(self.d)
+        self.quad_type = 'gp'
 
-    def evaluate_function(self,x):
+    def evalf_normalized_x(self,x):
         """
         Parameters
         ----------
@@ -41,7 +39,7 @@ class Initialize_Problem(Problem_Function):
             point in the function parameter space. The function evaluated at the
             mapped point is returned.
         """
-        
+
         # Map hypercube to function parameter space
         if self.quad_type == 'gp':
             qmin, qmax = -1., 1.
@@ -54,16 +52,41 @@ class Initialize_Problem(Problem_Function):
         xmin = self.mu - dx
         
         xp = xmin + (xmax - xmin)*(x - qmin)/dq
-        return self(xp)
+        return self.evalf_unnormalized_x(xp)
 
-    def eval_function_at_anchor(self):
+    def dactive_covariance(self):
         """
         Returns
         -------
+        dactive_covmatrix : float array
+            The reduced covariance matrix for all inputs. This covariance matrix
+            only includes the covariances among the dimensions specified in
+            dactive. 
+        """
+
+        dactive = self.dactive
+        N = len(dactive)
+        dactive_covmatrix = np.zeros([N,N])
+        for i in range(N):
+            dactive_covmatrix[i,:] = self.covmatrix[dactive[i],dactive]
+        self.dactive_covmatrix = dactive_covmatrix
+        
+    def __call__(self,x):
+        """
+        Parameters
+        ----------
+        x : float array
+            The value of each non-anchored dimension at which the function is to
+            be evaluated. Should have length less than or equal to d.
+        
+        Returns
+        -------
         self.evaluate_function(anchor) : float
-            The function value evaluated at the anchor point. Depending on which
-            absissas are used, as determined by 'quad_type', the anchor point is
-            chosen to be the mean of the corresponding hypercube. 
+            The function value evaluated at x for dimensions specified in x and
+            everywhere else the function is evaluated at the anchor point.
+            Depending on which absissas are used, as determined by 'quad_type',
+            the anchor point is chosen to be the mean of the corresponding
+            hypercube. 
         """
         
         if self.quad_type == 'gp':
@@ -71,9 +94,5 @@ class Initialize_Problem(Problem_Function):
         elif self.quad_type == 'cc':
             anchor = .5*np.ones(self.d)
 
-        return self.evaluate_function(anchor)
-    
-
-
-
-    
+        anchor[self.dactive] = x
+        return self.evalf_normalized_x(anchor)
