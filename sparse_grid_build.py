@@ -2,6 +2,9 @@ from combinatorics_routines import *
 from multiprocessing import Pool
 import shelve
 
+
+
+
 class Sparse_Grid:
     """
     Interpolates an N dimension function using Lagrange polynomial basis on a
@@ -21,9 +24,11 @@ class Sparse_Grid:
         """
         self.f = init_args['function']
         self.N = init_args['N']
-        self.norm1_error_crit = init_args['norm1_error_crit']
-        self.norm2_error_crit = init_args['norm2_error_crit']
+        self.error_crit1 = init_args['error_crit1'] # mean
+        self.error_crit2 = init_args['error_crit2'] # variance
+        self.error_crit3 = init_args['error_crit3'] # hierarchical surplus
         self.max_smolyak_level = init_args['max_smolyak_level']
+        self.min_smolyak_level = init_args['min_smolyak_level']
         self.quad_type = init_args['quad_type']
 
         self._fevals_unique = {'x':[],'f':[]}
@@ -32,7 +37,10 @@ class Sparse_Grid:
                                 'x':[],
                                 'f':[],
                                 'surplus':[]}
-        self._number_terms = 0 
+        self._surrogate_mean = 0.
+        self._surrogate_var = 0.
+        self._number_terms = 0
+
 
     def build_surrogate(self):
         """
@@ -42,14 +50,13 @@ class Sparse_Grid:
         max_smolyak_level = self.max_smolyak_level
         N = self.N
         quad_type = self.quad_type 
-        norm1_error = 1.
-        norm2_error = 1.
         if self.quad_type == 'gp':
             self._abscissas = shelve.open('gauss_patterson.dat')
         elif self.quad_type == 'cc':
             raise NotImplementedError
         abscissas = self._abscissas 
-
+        converged = False
+        
         # Start building surrogate
         for smolyak_level in range(0,max_smolyak_level+1):
             # Enumerate ways to get |i| = N + smolyak_level
@@ -70,11 +77,46 @@ class Sparse_Grid:
                 # Process 'points_that_need2b_evaluated' using multiprocessing
                 self.__process_new_nodes(points_that_need2b_evaluated)
 
-            self._number_terms = len(self._indice_history['x'])
+            # Start post-processing for current smolyak level
+            converged = self.__check_convergence(smolyak_level)
+            if converged == True:
+                print smolyak_level, 
+                break
             
-            print self.surrogate_mean() ##### 
+            
+                
      #   print self._indice_history['surplus']
      #   abscissas.close()
+
+    def __check_convergence(self,smolyak_level):
+        """
+        """
+        # Sample surrogate and get stats
+        mean, var = self.surrogate_mean_variance()
+        
+        if smolyak_level >= self.min_smolyak_level:
+            # Maximum hierarchical surplus of new nodes
+            maxhs = max(self._indice_history['surplus'][self._number_terms::])
+            dmean = abs(mean - self._surrogate_mean) 
+            dvar = abs(var - self._surrogate_var)
+            
+            if dmean < self.error_crit1 and dvar < self.error_crit2:
+                converged = True
+            elif maxhs < self.error_crit3:
+                converged = True
+            else:
+                converged = False
+        else:
+            converged = False
+            
+        # Update values
+        self._surrogate_mean = mean
+        self._surrogate_var = var
+        self._number_terms = len(self._indice_history['x'])
+        return converged
+            
+        
+        
 
     def __process_new_nodes(self,new_nodes):
         """
@@ -138,21 +180,52 @@ class Sparse_Grid:
         else:
             return 0.
 
-    def surrogate_mean(self,nsamps=100):
+    def surrogate_mean_variance(self,nsamps=100,seed=414):
         """
-        Sample surrogate using monte carlo
+        Parameters
+        ----------
+        nsamps : int
+            The covariance matrix for the active dimensions will be sampled
+            this number of times using numpy. These samples will then be
+            evaluated at the surrogate.
+        seed : int
+            The seed number to use when setting numpy's random number generator.
+            This ensures consistent results if the work is to be reproduced or
+            if nsamps is to be increased.
+
+        Returns
+        -------
+        mu : float
+            The average returned surrogate value when sampled at nsamp points.
+        var : float
+            The variance of the returned surrogate values when sampled at nsamp
+            points.
         """
         
-        np.random.seed(414)
-        
+        np.random.seed(seed)
         xsamp = np.random.multivariate_normal(f.mu,f.dactive_covmatrix,nsamps)
         fxsamp = np.array([self(x) for x in xsamp])
-        return np.mean(fxsamp)
+        mu = np.mean(fxsamp)
+        var = np.var(fxsamp)
+        return mu, var
 
-    def surrogate_variance(self):
-        """
-        """
-        raise NotImplementedError
+##    def __richardson_extrap(self,level,r=2.):
+##        """
+##        """
+##
+##        p = self.N
+##
+##        if self.quad_type == 'gp':
+##            # Gauss-Patterson
+##            evala = lambda l: ((2.**l)*(l**(p-1.)))**(-r/p)* \
+##                    np.log((2**l)*(l**(p-1.)))**((p-1.)*r/(p+1.))       
+##            a1 = evala(level-1.)
+##            a2 = evala(level)
+##            print a1, a2
+##            return (a1*self._mu[0] - a2*self._mu[1])/(a1-a2)
+##        elif self.quad_type == 'cc':
+##            # Clenshaw-Curtis
+##            raise NotImplementedError
     
     
 
@@ -164,9 +237,11 @@ f = Problem_Function(dactive=[0,1,2])
 
 init_args = {'function': f,
              'N': 3,
-             'norm1_error_crit': 1e-3,
-             'norm2_error_crit': 1e-3,
+             'error_crit1': 1e-2,
+             'error_crit2': 1e-2,
+             'error_crit3': 1e-1,
              'max_smolyak_level': 3,
+             'min_smolyak_level': 1,
              'quad_type': 'gp'}
                           
 S = Sparse_Grid(init_args)
