@@ -45,7 +45,8 @@ class Problem_Function(Hypercube):
         self.dactive = dactive
         
         Hypercube.__init__(self)
-        self.dactive_covariance()
+        self._dactive_covariance()
+        self._dactive_mean()
         
     def evalf_unnormalized_x(self,x):
         """

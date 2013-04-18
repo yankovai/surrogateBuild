@@ -302,7 +302,9 @@ class Sparse_Grid:
         """
         
         np.random.seed(seed)
-        xsamp = np.random.multivariate_normal(f.mu,f.dactive_covmatrix,nsamps)
+        xsamp = np.random.multivariate_normal(f.dactive_mu,
+                                              f.dactive_covmatrix,
+                                              nsamps)
         fxsamp = np.array([self(x) for x in xsamp])
         mu = np.mean(fxsamp)
         var = np.var(fxsamp)
@@ -310,8 +312,6 @@ class Sparse_Grid:
 
 
     
-    
-
 # Test on a problem        
 from problem_function import *
 from time import time
@@ -322,19 +322,13 @@ init_args = {'function': f,
              'error_crit1': 1e-2,
              'error_crit2': 1e-2,
              'error_crit3': 1e-1,
-             'max_smolyak_level': 3,
+             'max_smolyak_level': 5,
              'min_smolyak_level': 1,
              'quad_type': 'gp'}
                           
 S = Sparse_Grid(init_args)
-#t_current = time()
 S.build_surrogate()
 
-#x = np.random.uniform(-1.,1.,[10,3])
-#for xi in x:
-#    print S(xi), f(xi)
-#print time() - t_current
-    
 
 
 

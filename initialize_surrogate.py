@@ -54,7 +54,7 @@ class Hypercube:
         xp = xmin + (xmax - xmin)*(x - qmin)/dq
         return self.evalf_unnormalized_x(xp)
 
-    def dactive_covariance(self):
+    def _dactive_covariance(self):
         """
         Returns
         -------
@@ -70,6 +70,18 @@ class Hypercube:
         for i in range(N):
             dactive_covmatrix[i,:] = self.covmatrix[dactive[i],dactive]
         self.dactive_covmatrix = dactive_covmatrix
+
+    def _dactive_mean(self):
+        """
+        Returns
+        -------
+        dactive_mu : float array
+            The reduced mean array for all inputs. Only includes the means among
+            the dimensions specified in dactive. 
+        """
+
+        dactive = self.dactive
+        self.dactive_mu = self.mu[dactive]
         
     def __call__(self,x):
         """
