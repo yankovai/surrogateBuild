@@ -162,11 +162,14 @@ class Sparse_Grid:
             threshold. The maximum hierarchical surplus at the current smolyak
             level is also compared to the user-specified threshold.  
         """
-        
-        # Sample surrogate and get stats
-        mean, var = self.surrogate_mean_variance()
+
         # Maximum hierarchical surplus of new nodes
         maxhs = max(self._indice_history['surplus'][self._number_terms::])
+        # Update total number of terms in surrogate
+        self._number_terms = len(self._indice_history['x'])
+        # Sample surrogate and get stats
+        mean, var = self.surrogate_mean_variance()
+        
         
         if smolyak_level >= self.min_smolyak_level:
             dmean = abs(mean - self._surrogate_mean) 
@@ -184,8 +187,7 @@ class Sparse_Grid:
         # Update values
         self._surrogate_mean = mean
         self._surrogate_var = var
-        self._number_terms = len(self._indice_history['x'])
-
+        
         # Print updates to screen
         self.message.level_info(smolyak_level,mean,var,
                                 len(self._fevals_unique['x']),maxhs,converged)
@@ -240,7 +242,7 @@ class Sparse_Grid:
         # Calculate hierarchical surplus
         self._indice_history['surplus'] += [fi-self(xi) for fi,xi
                                             in zip(ftemp,new_nodes)]
-         
+
     def __call__(self,x):
         """
         Parameters
@@ -305,6 +307,9 @@ class Sparse_Grid:
         xsamp = np.random.multivariate_normal(f.dactive_mu,
                                               f.dactive_covmatrix,
                                               nsamps)
+        # Map values in xsamp to hypercube
+        xsamp = f.hypercube2parameters_map(xsamp,'hypercube')
+         
         fxsamp = np.array([self(x) for x in xsamp])
         mu = np.mean(fxsamp)
         var = np.var(fxsamp)
@@ -319,9 +324,9 @@ f = Problem_Function(dactive=[0,1,2])
 
 init_args = {'function': f,
              'N': 3,
-             'error_crit1': 1e-2,
-             'error_crit2': 1e-2,
-             'error_crit3': 1e-1,
+             'error_crit1': 1e-3,
+             'error_crit2': 1e-3,
+             'error_crit3': 1e-4,
              'max_smolyak_level': 5,
              'min_smolyak_level': 1,
              'quad_type': 'gp'}
@@ -329,9 +334,3 @@ init_args = {'function': f,
 S = Sparse_Grid(init_args)
 S.build_surrogate()
 
-
-
-
-
-
-    

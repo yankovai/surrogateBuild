@@ -25,6 +25,44 @@ class Hypercube:
         self.bounds = 6.*np.ones(self.d)
         self.quad_type = 'gp'
 
+    def hypercube2parameters_map(self,x,map2):
+        """
+        Paramaters
+        ----------
+        x : float array
+            An array of points that live either in a hypercube or in the
+            function parameters space.
+        map2 : string
+            Can either be 'hypercube' or 'parameters'. States what space the
+            values of x are mapped to.
+
+        Returns
+        -------
+        mapped x : float array
+            If the value of 'map2' is 'hypercube' then the values in x are
+            mapped from the function parameter space to the hypercube. If the
+            value of 'map2' is 'paramaters' then the values in x are mapped from
+            the hypercube to the parameter space.
+        """
+        
+        if self.quad_type == 'gp':
+            qmin, qmax = -1., 1.
+            dq = 2.
+        elif self.quad_type == 'cc':
+            qmin, qmax = 0., 1.
+            dq = 1. 
+
+        dx = self.bounds*self.std
+        xmax = self.mu + dx
+        xmin = self.mu - dx
+        
+        if map2 == 'hypercube':
+            # Map from paramater space to hypercube
+            return qmin + dq*(x-xmin)/(xmax-xmin)
+        elif map2 == 'parameters':
+            # Map from hypercube to parameter space
+            return xmin + (xmax - xmin)*(x - qmin)/dq
+        
     def evalf_normalized_x(self,x):
         """
         Parameters
@@ -40,18 +78,7 @@ class Hypercube:
             mapped point is returned.
         """
 
-        # Map hypercube to function parameter space
-        if self.quad_type == 'gp':
-            qmin, qmax = -1., 1.
-            dq = 2.
-        elif self.quad_type == 'cc':
-            qmin, qmax = 0., 1.
-            dq = 1.       
-        dx = self.bounds*self.std
-        xmax = self.mu + dx
-        xmin = self.mu - dx
-        
-        xp = xmin + (xmax - xmin)*(x - qmin)/dq
+        xp = self.hypercube2parameters_map(x,'parameters')
         return self.evalf_unnormalized_x(xp)
 
     def _dactive_covariance(self):
