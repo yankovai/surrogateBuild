@@ -42,7 +42,7 @@ class Problem_Function(Hypercube):
             for j in range(0,self.d):
                 covmatrix[i,j] = self.corrmatrix[i,j]*s[i]*s[j]
         self.covmatrix = covmatrix
-        self.dactive = dactive
+        self.dactive = list(dactive)
         
         Hypercube.__init__(self)
         self._dactive_covariance()

@@ -31,7 +31,9 @@ class Hypercube:
         ----------
         x : float array
             An array of points that live either in a hypercube or in the
-            function parameters space.
+            function parameters space. If 'map2' is 'hypercube' then x can be
+            any length less than or equal to the dimension of the function
+            (self.d). If 'map2' is 'parameters' then x must be of length self.d.
         map2 : string
             Can either be 'hypercube' or 'parameters'. States what space the
             values of x are mapped to.
@@ -50,17 +52,20 @@ class Hypercube:
             dq = 2.
         elif self.quad_type == 'cc':
             qmin, qmax = 0., 1.
-            dq = 1. 
-
-        dx = self.bounds*self.std
-        xmax = self.mu + dx
-        xmin = self.mu - dx
+            dq = 1.
         
         if map2 == 'hypercube':
             # Map from paramater space to hypercube
+            dactive = self.dactive
+            dx = self.bounds[dactive]*self.std[dactive]
+            xmax = self.dactive_mu + dx
+            xmin = self.dactive_mu - dx
             return qmin + dq*(x-xmin)/(xmax-xmin)
         elif map2 == 'parameters':
             # Map from hypercube to parameter space
+            dx = self.bounds*self.std
+            xmax = self.mu + dx
+            xmin = self.mu - dx
             return xmin + (xmax - xmin)*(x - qmin)/dq
         
     def evalf_normalized_x(self,x):

@@ -3,7 +3,7 @@ from multiprocessing import Pool
 from status_messages import Print_Status_Message
 import shelve
 
-class Sparse_Grid:
+class Sparse_Grid():
     """
     Interpolates an N dimension function using Lagrange polynomial basis on a
     Smolyak sparse grid using abscissas of the user's choice. See Sparse Grid
@@ -304,11 +304,11 @@ class Sparse_Grid:
         """
         
         np.random.seed(seed)
-        xsamp = np.random.multivariate_normal(f.dactive_mu,
-                                              f.dactive_covmatrix,
+        xsamp = np.random.multivariate_normal(self.f.dactive_mu,
+                                              self.f.dactive_covmatrix,
                                               nsamps)
         # Map values in xsamp to hypercube
-        xsamp = f.hypercube2parameters_map(xsamp,'hypercube')
+        xsamp = self.f.hypercube2parameters_map(xsamp,'hypercube')
          
         fxsamp = np.array([self(x) for x in xsamp])
         mu = np.mean(fxsamp)
@@ -318,19 +318,18 @@ class Sparse_Grid:
 
     
 # Test on a problem        
-from problem_function import *
-from time import time
-f = Problem_Function(dactive=[0,1,2])
-
-init_args = {'function': f,
-             'N': 3,
-             'error_crit1': 1e-3,
-             'error_crit2': 1e-3,
-             'error_crit3': 1e-4,
-             'max_smolyak_level': 5,
-             'min_smolyak_level': 1,
-             'quad_type': 'gp'}
-                          
-S = Sparse_Grid(init_args)
-S.build_surrogate()
+##from problem_function import *
+##f = Problem_Function(dactive=[0,1,2])
+##
+##init_args = {'function': f,
+##             'N': 3,
+##             'error_crit1': 1e-3,
+##             'error_crit2': 1e-3,
+##             'error_crit3': 1e-4,
+##             'max_smolyak_level': 5,
+##             'min_smolyak_level': 1,
+##             'quad_type': 'gp'}
+##                          
+##S = Sparse_Grid(init_args)
+##S.build_surrogate()
 
