@@ -386,48 +386,4 @@ class Surrogate:
 
         return surrogate_val
 
-            
-surrogate_args = {'dfrac_first_order': 1.0,
-                  'diff_mean_order': 1e-2}        
-                
-sparse_grid_args = {'error_crit1': 1e-3,
-                    'error_crit2': 1e-3,
-                    'error_crit3': 1e-4,
-                    'max_smolyak_level': 5,
-                    'min_smolyak_level': 1,
-                    'quad_type': 'gp'}
-
-S = Surrogate(surrogate_args, sparse_grid_args)
-
-
-
-
-
-# CALCULATE FUNCTION MEAN, VARIANCE USING MC
-# -------------------------------------------
-np.random.seed(414)
-f = Problem_Function([0,1,2])
-x = np.random.multivariate_normal(f.dactive_mu,f.dactive_covmatrix,100)
-fvals = np.array([f.evalf_unnormalized_x(xi) for xi in x])
-##
-##
-##fvals = np.array([f.evalf_unnormalized_x([xi[0],xi[1],.75]) for xi in x]) - 0.16484374999999996
-##fvals -= np.array([f.evalf_unnormalized_x([xi[0],1.25,.75]) for xi in x]) - 0.16484374999999996
-##fvals -= np.array([f.evalf_unnormalized_x([.25,xi[1],.75]) for xi in x]) - 0.16484374999999996
-print np.mean(fvals), np.var(fvals)
-
-
-
-    
-    
-    
-
-
-
-
-
-
-
-
-
 
