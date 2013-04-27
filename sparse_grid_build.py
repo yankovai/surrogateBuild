@@ -1,6 +1,6 @@
 from combinatorics_routines import *
 from multiprocessing import Pool
-from status_messages import Print_Status_Message
+from status_messages import Status_Message_SparseGrid
 import shelve
 
 class Sparse_Grid():
@@ -79,7 +79,7 @@ class Sparse_Grid():
         self.quad_type = init_args['quad_type']
         
         # Global data structures needed for build
-        self.message = Print_Status_Message()
+        self.message = Status_Message_SparseGrid()
         self._fevals_unique = {'x':[],'f':[]}
         self._indice_history = {'iindices':[],
                                 'jindices':[],

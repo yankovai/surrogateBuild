@@ -1,4 +1,6 @@
+# Import functions
 from sparse_grid_build import Sparse_Grid
+from status_messages import Status_Message_Surrogate
 from problem_function import *
 import numpy as np
 from itertools import combinations
@@ -181,13 +183,16 @@ class Surrogate:
         surrogate_mean : float
             Mean of the surrogate created for the objective function.
         """
+
+        # Print status messages
+        self.message = Status_Message_Surrogate()
         
         sparse_grid_args['function'] = None
         sparse_grid_args['N'] = None   
         self.sparse_grid_args = sparse_grid_args
 
         # From surrogate_args
-        self.dfrac_first_order = surrogate_args['dfrac_first_order']
+        self.kmeans_frac = surrogate_args['kmeans_frac']
         self.diff_mean_order = surrogate_args['diff_mean_order']
         
         self.hdmr_components = {'dactive': [], 'fdactive': []}
@@ -226,6 +231,7 @@ class Surrogate:
         """
 
         # Initialize
+        self.message.build_order(1)
         init_args = self.sparse_grid_args
         init_args['N'] = 1
         hdmr_comps = self.hdmr_components
@@ -234,6 +240,7 @@ class Surrogate:
         first_order_weights = []
             
         for dactive in combinations(range(dtotal),1):
+            self.message.build_hdmr_component(dactive)
             f = Problem_Function(dactive)
             init_args['function'] = f
             H = HDMR_Component(dactive,hdmr_comps,base_point,init_args)
@@ -245,6 +252,8 @@ class Surrogate:
 
         # Update surrogate mean and variance
         self.surrogate_mean, self.surrogate_var = self._get_surrogate_stats()
+        # Print mean and variance
+        self.message.order_info(self.surrogate_mean,self.surrogate_var) 
 
         # Make sure to not divide by 0 if that's the value of base point
         if base_point != 0.:
@@ -255,7 +264,7 @@ class Surrogate:
         self.first_order_weights = first_order_weights
 
         # Use k-means algorithm to identify important dimensions
-        nclusts = np.ceil(1./self.dfrac_first_order)
+        nclusts = np.ceil(1./self.kmeans_frac)
         c,l = cluster.vq.kmeans2(first_order_weights,nclusts,iter=100)
         c = abs(c)
         cmax = c.argmax()
@@ -284,8 +293,10 @@ class Surrogate:
         converged = False
 
         for surrogate_order in range(2,nimportant_dimensions + 1):
+            self.message.build_order(surrogate_order)
             init_args['N'] = surrogate_order
             for dactive in combinations(important_dimensions,surrogate_order):
+                self.message.build_hdmr_component(dactive)
                 f = Problem_Function(dactive)
                 init_args['function'] = f
                 H = HDMR_Component(dactive,hdmr_comps,base_point,init_args)
@@ -321,7 +332,8 @@ class Surrogate:
             converged = True
         else:
             converged = False
-            
+
+        self.message.order_info(surrogate_mean,surrogate_var) 
         # Update mean and variance
         self.surrogate_mean = surrogate_mean
         self.surrogate_var = surrogate_var
