@@ -22,11 +22,12 @@ class Sparse_Grid():
         error_crit1 : float
             As the surrogate is built upon with successive levels, the mean of
             the surrogate is taken at each level. One of the convergence
-            criteria is the difference between two successive mean values. This
-            variable specifies the threshold desired for convergence.
+            criteria is the relative difference between two successive mean
+            values. This variable specifies the threshold desired for
+            convergence.
         error_crit2 : float
-            Same as error_crit1 but uses the variance of the surrogate rather
-            than the mean.
+            Same as error_crit1 but uses the relative variance of the surrogate
+            rather than the mean.
         error_crit3: float
             At each new smolyak level there will be a number of hierarchical
             surpluses calculated. The maximum surplus is taken and used as a
@@ -157,10 +158,11 @@ class Sparse_Grid():
             Using calculated parameters from the current smolyak level, this
             function decides whether the surrogate is converged with respect to
             thresholds specified by the user. First, the code checks if the
-            minimum smolyak level has been achieved. If it has, the difference
-            between two successive surrogate means/variances is compared to the
-            threshold. The maximum hierarchical surplus at the current smolyak
-            level is also compared to the user-specified threshold.  
+            minimum smolyak level has been achieved. If it has, the relative
+            difference between two successive surrogate means/variances is
+            compared to the threshold. The maximum hierarchical surplus at the
+            current smolyak level is also compared to the user-specified
+            threshold.  
         """
 
         # Maximum hierarchical surplus of new nodes
@@ -172,8 +174,14 @@ class Sparse_Grid():
         
         
         if smolyak_level >= self.min_smolyak_level:
-            dmean = abs(mean - self._surrogate_mean) 
-            dvar = abs(var - self._surrogate_var)
+            if self._surrogate_mean == 0:
+                dmean = abs(mean - self._surrogate_mean)
+            else:
+                dmean = abs(mean - self._surrogate_mean)/self._surrogate_mean
+            if self._surrogate_var == 0:
+                dvar = abs(var - self._surrogate_var)
+            else:
+                dvar = abs(var - self._surrogate_var)/self._surrogate_var
             
             if dmean < self.error_crit1 and dvar < self.error_crit2:
                 converged = True
@@ -316,20 +324,4 @@ class Sparse_Grid():
         return mu, var
 
 
-    
-# Test on a problem        
-##from problem_function import *
-##f = Problem_Function(dactive=[0,1,2])
-##
-##init_args = {'function': f,
-##             'N': 3,
-##             'error_crit1': 1e-3,
-##             'error_crit2': 1e-3,
-##             'error_crit3': 1e-4,
-##             'max_smolyak_level': 5,
-##             'min_smolyak_level': 1,
-##             'quad_type': 'gp'}
-##                          
-##S = Sparse_Grid(init_args)
-##S.build_surrogate()
 

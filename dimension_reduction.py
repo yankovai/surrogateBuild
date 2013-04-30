@@ -145,17 +145,22 @@ class Surrogate:
             
             Contains
             --------
-            dfrac_first_order : float
+            max_weight_frac : float
                 A real number between 0 and 1 that controls how many dimenions
                 will be included when constructing higher order components for
-                the surrogate.
-            diff_mean_order : float
+                the surrogate. To decide which dimensions will be included in
+                higher-order constructs, the magnitudes of all first-order
+                sensitivities are normalized by the maximum first-order
+                sensitivity. Then, the normalized sensitivities which are
+                greater than 'max_weight_frac' are taken as the important
+                dimensions. 
+            diff_var_order : float
                 Convergence criteria for the Cut-HDMR decomposition. Threshold
-                for the mean of two consecutive surrogates orders. For example,
-                the algorithm will terminate if the difference between the mean
-                of the surrogate consisting of all first-order effects (and
-                below) and the surrogate consisting of all second-order effects
-                (and below) is less than 'diff_mean_order'.
+                for the variance of two consecutive surrogates orders. For
+                example, the algorithm will terminate if the difference between
+                the variance of the surrogate consisting of all first-order
+                effects (and below) and the surrogate consisting of all second
+                -order effects (and below) is less than 'diff_var_order'.
                 
         sparse_grid_args : dictionary
             Contains parameters used to control the construction of the
@@ -192,8 +197,8 @@ class Surrogate:
         self.sparse_grid_args = sparse_grid_args
 
         # From surrogate_args
-        self.kmeans_frac = surrogate_args['kmeans_frac']
-        self.diff_mean_order = surrogate_args['diff_mean_order']
+        self.max_weight_frac = surrogate_args['max_weight_frac']
+        self.diff_var_order = surrogate_args['diff_var_order']
         
         self.hdmr_components = {'dactive': [], 'fdactive': []}
 
@@ -263,25 +268,23 @@ class Surrogate:
 
         self.first_order_weights = first_order_weights
 
-        # Use k-means algorithm to identify important dimensions
-        nclusts = np.ceil(1./self.kmeans_frac)
-        c,l = cluster.vq.kmeans2(first_order_weights,nclusts,iter=100)
-        c = abs(c)
-        cmax = c.argmax()
+        # Identify imporant dimensions
+        first_order_weights = abs(first_order_weights)
+        first_order_weights /= max(first_order_weights)
         important_dimensions = []
-        for li,i in zip(l,range(dtotal)):
-            if li == cmax:
-                important_dimensions.append(hdmr_comps['dactive'][i][0])
+        for w,i in zip(first_order_weights > self.max_weight_frac,range(dtotal)):
+            if w == True:
+                important_dimensions.append(i)
 
         # Make 'important_dimensions' a class variable
         self.important_dimensions = important_dimensions
-                
+          
     def _higher_order_build(self):
         """
         Based on the dimensions included in 'important_dimensions' from the
         function first_order_build, higher order components are constructed in
         the Cut-HDMR expansion. When the convergence criteria set by the
-        parameter diff_mean_order is reached, the algorithm terminates.
+        parameter diff_var_order is reached, the algorithm terminates.
         """
 
         # Initialize
@@ -325,10 +328,10 @@ class Surrogate:
         surrogate_mean, surrogate_var = self._get_surrogate_stats()
 
         # Relative difference in mean between two expansion orders
-        dmean = abs((surrogate_mean - self.surrogate_mean)/self.surrogate_mean)
+        dvar = abs((surrogate_var - self.surrogate_var)/self.surrogate_var)
 
         # Converged?
-        if dmean < self.diff_mean_order:
+        if dvar < self.diff_var_order:
             converged = True
         else:
             converged = False
