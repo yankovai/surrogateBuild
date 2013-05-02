@@ -4,7 +4,6 @@ from status_messages import Status_Message_Surrogate
 from problem_function import *
 import numpy as np
 from itertools import combinations
-from scipy import cluster
 
 class HDMR_Component(Sparse_Grid):
     """
@@ -212,6 +211,7 @@ class Surrogate:
         # Initialize surrogate parameters
         self.surrogate_var = 0.
         self.surrogate_mean = self.base_point
+        self.dimensions_weight = {'dactive': [],'weight': []}
 
         # Build first-order components
         self._first_order_build()
@@ -242,7 +242,7 @@ class Surrogate:
         hdmr_comps = self.hdmr_components
         base_point = self.base_point
         dtotal = self.objective_function.d
-        first_order_weights = []
+        dim_weight = self.dimensions_weight
             
         for dactive in combinations(range(dtotal),1):
             self.message.build_hdmr_component(dactive)
@@ -251,28 +251,23 @@ class Surrogate:
             H = HDMR_Component(dactive,hdmr_comps,base_point,init_args)
             hdmr_comps['dactive'].append(dactive)
             hdmr_comps['fdactive'].append(H)
-            first_order_weights.append(H.hdmr_component_mean)
-
-        self.hdmr_components = hdmr_comps
+            dim_weight['dactive'].append(dactive)
+            # Make sure to not divide by 0 if that's the value of base point
+            if base_point != 0.:
+                dim_weight['weight'].append(H.hdmr_component_mean/base_point)
+            else:
+                dim_weight['weight'].append(H.hdmr_component_mean)
 
         # Update surrogate mean and variance
         self.surrogate_mean, self.surrogate_var = self._get_surrogate_stats()
         # Print mean and variance
-        self.message.order_info(self.surrogate_mean,self.surrogate_var) 
-
-        # Make sure to not divide by 0 if that's the value of base point
-        if base_point != 0.:
-            first_order_weights = np.array(first_order_weights)/base_point
-        else:
-            first_order_weights = np.array(first_order_weights)
-
-        self.first_order_weights = first_order_weights
+        self.message.order_info(self.surrogate_mean,self.surrogate_var)    
 
         # Identify imporant dimensions
-        first_order_weights = abs(first_order_weights)
-        first_order_weights /= max(first_order_weights)
+        weights1 = abs(np.array(dim_weight['weight']))
+        weights1 /= max(weights1)
         important_dimensions = []
-        for w,i in zip(first_order_weights > self.max_weight_frac,range(dtotal)):
+        for w,i in zip(weights1 > self.max_weight_frac,range(dtotal)):
             if w == True:
                 important_dimensions.append(i)
 
@@ -293,6 +288,7 @@ class Surrogate:
         init_args = self.sparse_grid_args
         hdmr_comps = self.hdmr_components
         base_point = self.base_point
+        dim_weight = self.dimensions_weight
         converged = False
 
         for surrogate_order in range(2,nimportant_dimensions + 1):
@@ -305,8 +301,14 @@ class Surrogate:
                 H = HDMR_Component(dactive,hdmr_comps,base_point,init_args)
                 hdmr_comps['dactive'].append(dactive)
                 hdmr_comps['fdactive'].append(H)
+                dim_weight['dactive'].append(dactive)
 
-            self.hdmr_components = hdmr_comps
+                # Calculate weights 
+                if self.surrogate_mean != 0.:
+                    dim_weight['weight'].append(H.hdmr_component_mean/self.surrogate_mean)
+                else:
+                    dim_weight['weight'].append(H.hdmr_component_mean)
+                
             # Check for convergence
             converged = self._check_convergence()
             if converged == True:
@@ -370,9 +372,9 @@ class Surrogate:
         x = np.random.multivariate_normal(mu,covmatrix,nsamps)
         # Map parameter domain to hypercube domain
         x = self.objective_function.hypercube2parameters_map(x,'hypercube')
-        # Evaluate surrogate at sampled values
+        # Evaluate surrogate at sampled values 
         fvals = np.array([self(xi) for xi in x])
-
+        
         surrogate_mean = np.mean(fvals)
         surrogate_var = np.var(fvals)
 
