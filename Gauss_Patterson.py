@@ -1,5 +1,15 @@
 import numpy as np
 
+def number_knots(level):
+    """
+    Takes as input an array of different levels and returns the number of knots
+    in each respective level. 
+    """
+
+    nknots = 2**level - 1
+
+    return nknots
+
 def process_gp_knots():
     """
     Store 9 levels of Gauss-Patterson abscissas into the dict object gp_knots.
@@ -1105,6 +1115,7 @@ def gp_data_main():
     
     gp_knots = process_gp_knots()
     gp_data = {}
+    gp_data.setdefault('nknots',number_knots)
     for level in range(1,10):
         gp_data.setdefault(level)
         if level < 6: 
@@ -1115,5 +1126,3 @@ def gp_data_main():
             
     return gp_data
 
-gp_data = gp_data_main()
-gp_data[6]

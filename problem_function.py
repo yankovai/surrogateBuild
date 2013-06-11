@@ -61,5 +61,5 @@ class Problem_Function(Hypercube):
             Function value at x.
         """
         
-        return np.power(x[0],2) + np.power(x[1],2) + np.power(x[2],2)
+        return 3.*np.power(x[0],3) + np.power(x[1],2)*x[0] - np.power(x[2],2)
 

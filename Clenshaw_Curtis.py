@@ -2,13 +2,14 @@ import numpy as np
 
 def number_knots(level):
     """
+    Takes as input an array of different levels and returns the number of knots
+    in each respective level. 
     """
 
-    if level == 1:
-        return 1
-    else:
-        return 2**(level-1) + 1
-
+    nknots = 2**(level-1) + 1
+    where_equals2 = nknots == 2
+    nknots[where_equals2] = 1
+    return nknots
 
 def barycentric_weights(mi):
     """
@@ -45,7 +46,7 @@ class Clenshaw_Curtis:
         """
         
         self.level = level
-        self.nknots = number_knots(level)
+        self.nknots = number_knots(np.array([level]))[0]
         self.knots = knots(self.nknots)    
         self.bweights = barycentric_weights(self.nknots)
 
@@ -54,8 +55,12 @@ def cc_data_main(maxlevel=10):
     """
 
     cc_data = {}
+    cc_data.setdefault('nknots',number_knots)
     for level in range(1,maxlevel+1):
         cc_data.setdefault(level,Clenshaw_Curtis(level))
 
     return cc_data
+
+
+        
 

@@ -1,7 +1,7 @@
 from combinatorics_routines import *
 from multiprocessing import Pool
 from status_messages import Status_Message_SparseGrid
-import shelve
+
 
 class Sparse_Grid():
     """
@@ -77,7 +77,7 @@ class Sparse_Grid():
         self.error_crit3 = init_args['error_crit3']
         self.max_smolyak_level = init_args['max_smolyak_level']
         self.min_smolyak_level = init_args['min_smolyak_level']
-        self.quad_type = init_args['quad_type']
+        self.quad_data = init_args['quad_data']
         
         # Global data structures needed for build
         self.message = Status_Message_SparseGrid()
@@ -108,13 +108,7 @@ class Sparse_Grid():
 
         # Initialize surrogate
         max_smolyak_level = self.max_smolyak_level
-        N = self.N
-        quad_type = self.quad_type 
-        if self.quad_type == 'gp':
-            self._abscissas = shelve.open('gauss_patterson.dat')
-        elif self.quad_type == 'cc':
-            raise NotImplementedError
-        abscissas = self._abscissas 
+        N = self.N 
         converged = False
         
         # Start building surrogate
@@ -123,13 +117,13 @@ class Sparse_Grid():
             # Enumerate ways to get |i| = N + smolyak_level
             for iindices in enumerate_bins_sum(N,N+smolyak_level)[0]:
                 points_that_need2b_evaluated = []
-                args = {'d': N, 'bin_levels': [iindices], 'quad_type': quad_type}
-                for jindices in enumerate_upto_number_nodes(**args):
+                bin_levels = self.quad_data['nknots'](np.array(iindices))
+                for jindices in enumerate_upto_number_nodes(N,bin_levels):
                     
                     # Get abscissa value
                     xtemp = []
                     for i,j in zip(iindices,jindices):
-                        xtemp.append(abscissas['level'+str(i)]['x'][j-1])
+                        xtemp.append(self.quad_data[i].knots[j-1])
                     points_that_need2b_evaluated.append(xtemp)
                     
                     # Store new abscissa information
@@ -236,10 +230,11 @@ class Sparse_Grid():
                 indice_need_feval.append(i)
                 
         # Evaluate f(x) for x never before evaluated (multiprocessing)             
-        po = Pool()
-        fvals_out = po.map(self.f,points_need_feval)
-        po.close()
-        po.join()
+    #    po = Pool()
+    #    fvals_out = po.map(self.f,points_need_feval)
+        fvals_out = [self.f(xi) for xi in points_need_feval]
+    #    po.close()
+    #    po.join()
 
         # Update
         for i,fi in zip(indice_need_feval,fvals_out):
@@ -256,7 +251,7 @@ class Sparse_Grid():
         Parameters
         ----------
         x : float
-            The N-dimensional point wat which the surrogate model is evaluated.
+            The N-dimensional point at which the surrogate model is evaluated.
             
         Returns
         -------
@@ -264,9 +259,9 @@ class Sparse_Grid():
             The value of the surrogate at x, evaluated at the highest smolyak
             level calculated. 
         """
-        
+
+        eps = np.finfo(np.float64).eps
         n = self._number_terms
-        abscissas = self._abscissas
         iindices = self._indice_history['iindices'][0:n]
         jindices = self._indice_history['jindices'][0:n]
         surplus = self._indice_history['surplus'][0:n]
@@ -276,13 +271,12 @@ class Sparse_Grid():
             for i,j,s in zip(iindices,jindices,surplus):
                 a = 1.
                 for d in range(0,self.N):
-                    if i[d] > 1:   
-                        temp = abscissas['level'+str(i[d])]['x']
-                        xijs = temp[j[d]-1]
-                        temp = np.delete(temp,j[d]-1)
-                        a *= np.product((x[d] - temp)/(xijs - temp))
-                    else:
-                        a *= 1.
+                    # Barycentric interpolation
+                    w = self.quad_data[i[d]].bweights
+                    xi = self.quad_data[i[d]].knots 
+                    dx = x[d] - xi
+                    tmp = w/(dx + eps)
+                    a *= tmp[j[d]-1]/sum(tmp)
                 a *= s
                 interpolant_val += a    
             return interpolant_val    
@@ -323,5 +317,23 @@ class Sparse_Grid():
         var = np.var(fxsamp)
         return mu, var
 
-
+##from problem_function import Problem_Function
+##from Clenshaw_Curtis import cc_data_main
+###from Gauss_Patterson import gp_data_main
+##
+##cc_data = cc_data_main()
+###gp_data = gp_data_main()
+##f = Problem_Function([0,1,2])
+##
+##sparse_grid_args = {'function': f,
+##                    'N': 3,
+##                    'error_crit1': 1e-3,
+##                    'error_crit2': 1e-3,
+##                    'error_crit3': 1e-4,
+##                    'max_smolyak_level': 5,
+##                    'min_smolyak_level': 1,
+##                    'quad_data': cc_data}
+##
+##S = Sparse_Grid(sparse_grid_args)
+##S.build_surrogate()
 
