@@ -1,3 +1,4 @@
+from scipy.integrate import odeint
 import numpy as np
 from initialize_surrogate import Hypercube
 
@@ -28,16 +29,27 @@ class Problem_Function(Hypercube):
             the anchor value.
         """
         
-        self.d = 3
-        self.mu = np.array([.25, 1.25, .75])
-        self.std = .05*self.mu
+        self.d = 5
+        self.mu = np.array([1.04e-2,     # 0  absorption 1
+                            1.10e-1,     # 1  absorption 2
+                            9.00e-3,     # 2  nufission 1
+                            1.91e-1,     # 3  nufission 2
+                            1.80e-2])    # 4  downscatter
+  
+        self.std = np.array([9.06e-5,
+                             2.31e-4,
+                             4.85e-5,
+                             8.87e-4,
+                             2.18e-4])
         # Correlation matrix for inputs
-        self.corrmatrix = np.array([[1.,.7,.3],
-                                    [.7,1.,.5],
-                                    [.3,.5,1.]])
+        self.corrmatrix = np.array([[ 1.00, 0.07,-0.13, 0.02, 0.75],
+                                    [ 0.07, 1.00, 0.06, 0.31,-0.07],
+                                    [-0.13, 0.06, 1.00, 0.33,-0.10],
+                                    [ 0.02, 0.31, 0.33, 1.00, 0.01],
+                                    [ 0.75,-0.07,-0.10, 0.01, 1.00]])
         # Build covariance matrix for the inputs
         s = self.std
-        covmatrix = np.zeros([3,3])
+        covmatrix = np.zeros([5,5])
         for i in range(0,self.d):
             for j in range(0,self.d):
                 covmatrix[i,j] = self.corrmatrix[i,j]*s[i]*s[j]
@@ -59,7 +71,12 @@ class Problem_Function(Hypercube):
         -------
         f(x) : float
             Function value at x.
-        """
-        
-        return 3.*np.power(x[0],3) + np.power(x[1],2)*x[0] - np.power(x[2],2)
+        """     
+
+        # Return k-inf
+        return (x[1]*x[2] + x[4]*x[3])/(x[1]*(x[0] + x[4]))
+
+
+
+
 

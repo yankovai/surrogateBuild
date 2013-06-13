@@ -1,5 +1,7 @@
 from dimension_reduction import Surrogate
 from Clenshaw_Curtis import cc_data_main
+import numpy as np
+from problem_function import Problem_Function 
 
 cc_data = cc_data_main()
 
@@ -14,16 +16,7 @@ sparse_grid_args = {'error_crit1': 1e-3,
 
 S = Surrogate(surrogate_args,sparse_grid_args)
 
-### CALCULATE FUNCTION MEAN, VARIANCE USING MC
-### -------------------------------------------
-##nsamps = 100
-##seed = 414
-##
-##np.random.seed(seed)
-##f = Problem_Function([0,1,2])
-##x = np.random.multivariate_normal(f.dactive_mu,f.dactive_covmatrix,nsamps)
-##fvals = np.array([f.evalf_unnormalized_x(xi) for xi in x])
-##print np.mean(fvals), np.var(fvals)
+
 
 
 
