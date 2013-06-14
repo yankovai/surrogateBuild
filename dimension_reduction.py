@@ -209,8 +209,10 @@ class Surrogate:
         self.objective_function = Problem_Function(range(0,objectivef_d))
 
         # Initialize surrogate parameters
-        self.surrogate_var = 0.
-        self.surrogate_mean = self.base_point
+      #  self.surrogate_var = 0.
+      #  self.surrogate_mean = self.base_point
+        self.surrogate_var = [0.]
+        self.surrogate_mean = [self.base_point]
         self.dimensions_weight = {'dactive': [],'weight': []}
 
         # Build first-order components
@@ -259,9 +261,12 @@ class Surrogate:
                 dim_weight['weight'].append(H.hdmr_component_mean)
 
         # Update surrogate mean and variance
-        self.surrogate_mean, self.surrogate_var = self._get_surrogate_stats()
+        mean_new, var_new = self._get_surrogate_stats()
+        self.surrogate_mean.append(mean_new)
+        self.surrogate_var.append(var_new)
+        
         # Print mean and variance
-        self.message.order_info(self.surrogate_mean,self.surrogate_var)    
+        self.message.order_info(self.surrogate_mean[-1],self.surrogate_var[-1])    
 
         # Identify imporant dimensions
         weights1 = abs(np.array(dim_weight['weight']))
@@ -327,10 +332,10 @@ class Surrogate:
         """
 
         # Calculate mean and variance of current surrogate
-        surrogate_mean, surrogate_var = self._get_surrogate_stats()
+        mean_new, var_new = self._get_surrogate_stats()
 
         # Relative difference in mean between two expansion orders
-        dvar = abs((surrogate_var - self.surrogate_var)/self.surrogate_var)
+        dvar = abs((var_new - self.surrogate_var[-1])/self.surrogate_var[-1])
 
         # Converged?
         if dvar < self.diff_var_order:
@@ -338,10 +343,10 @@ class Surrogate:
         else:
             converged = False
 
-        self.message.order_info(surrogate_mean,surrogate_var) 
+        self.message.order_info(mean_new,var_new) 
         # Update mean and variance
-        self.surrogate_mean = surrogate_mean
-        self.surrogate_var = surrogate_var
+        self.surrogate_mean.append(mean_new)
+        self.surrogate_var.append(var_new)
 
         return converged
 

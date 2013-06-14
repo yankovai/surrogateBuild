@@ -78,9 +78,9 @@ def full_sparse_grid(quad_type,nsamps=1000,seed=414):
                         'N': 5,
                         'error_crit1': 1e-3,
                         'error_crit2': 1e-3,
-                        'error_crit3': 1e-4,
-                        'max_smolyak_level': 5,
-                        'min_smolyak_level': 4, 
+                        'error_crit3': 1e-6,
+                        'max_smolyak_level': 6,
+                        'min_smolyak_level': 1, 
                         'quad_data': quad_data}
 
     kinf_interp = Sparse_Grid(sparse_grid_args)
@@ -115,14 +115,57 @@ def full_sparse_grid(quad_type,nsamps=1000,seed=414):
     print "nu-fission 2: %8.5f" %(sg_sensitivities[3])
     print "downscatter : %8.5f \n" %(sg_sensitivities[4])
 
-def dimension_reduction():
+def oned_weights(quad_type):
     """
+    Plot weights of 1D components to see which are the most important"
     """
     
-mc_sampling_analytic()
-sandwich_formula_analytic()
-#full_sparse_grid('cc')
-#full_sparse_grid('gp')
+    from dimension_reduction import Surrogate
+    import matplotlib.pylab as pl
+    print ("Perform anchored-ANOVA decomposition on k-inf and analyze the \n"
+           "importance of 1D components.")
+
+    f = Problem_Function([0,1,2,3,4])
+   
+    if quad_type == 'cc':
+        print "Using Clenshaw-Curtis abscissas to form sparse grids. \n"
+        from Clenshaw_Curtis import cc_data_main
+        quad_data = cc_data_main()
+    elif quad_type == 'gp':
+        print "Using Gauss-Patterson abscissas to form sparse grids. \n"
+        from Gauss_Patterson import gp_data_main
+        quad_data = gp_data_main()
+
+    surrogate_args =   {'max_weight_frac': 1.0,
+                        'diff_var_order': 1e-3}                       
+    sparse_grid_args = {'error_crit1': 1e-3,
+                        'error_crit2': 1e-3,
+                        'error_crit3': 1e-4,
+                        'max_smolyak_level': 6,
+                        'min_smolyak_level': 1,
+                        'quad_data': quad_data}
+
+    print ("In this case the 1D anchored-ANOVA components can exactly reproduce \n"
+           "the variance of k-inf. \n")
+    kinf = Surrogate(surrogate_args,sparse_grid_args)
+    weights = abs(np.array(kinf.dimensions_weight['weight']))
+    weights /= sum(weights)
+
+    pl.figure(1, figsize=(6,6))
+
+    # The slices will be ordered and plotted counter-clockwise.
+    labels = '$\Sigma_{a1}$', '$\Sigma_{a2}$', r'$\nu\Sigma_{f1}$', r'$\nu\Sigma_{f2}$', '$\Sigma_{12}$'
+    pl.pie(weights, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90)
+    pl.title('Relative Weight of 1D anchored-ANOVA Components', bbox={'facecolor':'0.8', 'pad':5})
+    pl.show()
+
+if __name__ == '__main__':   
+    mc_sampling_analytic()
+    sandwich_formula_analytic()
+    full_sparse_grid('cc')
+    full_sparse_grid('gp')
+    oned_weights('cc')
+    oned_weights('gp')
 
 
 
