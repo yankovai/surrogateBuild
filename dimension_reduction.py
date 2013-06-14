@@ -209,8 +209,6 @@ class Surrogate:
         self.objective_function = Problem_Function(range(0,objectivef_d))
 
         # Initialize surrogate parameters
-      #  self.surrogate_var = 0.
-      #  self.surrogate_mean = self.base_point
         self.surrogate_var = [0.]
         self.surrogate_mean = [self.base_point]
         self.dimensions_weight = {'dactive': [],'weight': []}
@@ -270,7 +268,7 @@ class Surrogate:
 
         # Identify imporant dimensions
         weights1 = abs(np.array(dim_weight['weight']))
-        weights1 /= max(weights1)
+        weights1 /= sum(weights1)
         important_dimensions = []
         for w,i in zip(weights1 > self.max_weight_frac,range(dtotal)):
             if w == True:
@@ -278,7 +276,7 @@ class Surrogate:
 
         # Make 'important_dimensions' a class variable
         self.important_dimensions = important_dimensions
-          
+
     def _higher_order_build(self):
         """
         Based on the dimensions included in 'important_dimensions' from the
