@@ -270,7 +270,7 @@ class Surrogate:
 
         # Identify imporant dimensions
         weights1 = abs(np.array(dim_weight['weight']))
-        weights1 /= max(weights1)
+        weights1 /= sum(weights1)
         important_dimensions = []
         for w,i in zip(weights1 > self.max_weight_frac,range(dtotal)):
             if w == True:
@@ -391,6 +391,7 @@ class Surrogate:
         ----------
         x : float array
             The point at which the surrogate is to be evaluated.
+            x must be in hpercube.
             
         Returns
         -------

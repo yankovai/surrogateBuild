@@ -1,7 +1,7 @@
 import numpy as np
 from problem_function import Problem_Function
 
-def mc_sampling_analytic(nsamps=1000,seed=414):
+def mc_sampling_analytic(nsamps=300,seed=414):
     """
     Use Monte-Carlo sampling to get the mean and variance of the true function.
     """
@@ -15,8 +15,8 @@ def mc_sampling_analytic(nsamps=1000,seed=414):
 
     print ("Using Monte-Carlo sampling of the true function with %d samples and \n"
            "seed number %d. \n") %(nsamps, seed)
-    print "Mean: %7.5f" %(mc_mean)
-    print "Variance: %7.5f \n" %(mc_var)
+    print "Mean: %12.5e" %(mc_mean)
+    print "Variance: %12.5e \n" %(mc_var)
 
 def sandwich_formula_analytic():
     """
@@ -44,17 +44,17 @@ def sandwich_formula_analytic():
 
     print ("Using the sandwich formula to calculate the variance of k-infinity.\n"
            "The mean value is obtained by evaluating at the mean xsec values. \n")
-    print "Mean: %7.5f" %(kmean)
-    print "Variance: %7.5f \n" %(sand_var)
+    print "Mean: %12.5e" %(kmean)
+    print "Variance: %12.5e \n" %(sand_var)
     
     print "Analytic sensitivities of k-inf (at mean xsecs) to:"
-    print "absorption 1: %8.5f" %(dk_dabs1*xsecs[0]/kmean)
-    print "absorption 2: %8.5f" %(dk_dabs2*xsecs[1]/kmean)
-    print "nu-fission 1: %8.5f" %(dk_dnufis1*xsecs[2]/kmean)
-    print "nu-fission 2: %8.5f" %(dk_dnufis2*xsecs[3]/kmean)
-    print "downscatter : %8.5f \n" %(dk_dscat*xsecs[4]/kmean)
+    print "absorption 1: %12.5e" %(dk_dabs1*xsecs[0]/kmean)
+    print "absorption 2: %12.5e" %(dk_dabs2*xsecs[1]/kmean)
+    print "nu-fission 1: %12.5e" %(dk_dnufis1*xsecs[2]/kmean)
+    print "nu-fission 2: %12.5e" %(dk_dnufis2*xsecs[3]/kmean)
+    print "downscatter : %12.5e \n" %(dk_dscat*xsecs[4]/kmean)
 
-def full_sparse_grid(quad_type,nsamps=1000,seed=414):
+def full_sparse_grid(quad_type,nsamps=300,seed=414):
     """
     Build full, 5 dimensional sparse grid for k-inf and calculate mean, variance,
     and sensitivities using central differencing.
@@ -90,30 +90,29 @@ def full_sparse_grid(quad_type,nsamps=1000,seed=414):
     print "\n"
     print ("Sampling sparse grid interpolant using %d samples and "
            "seed number %d. \n") %(nsamps,seed)
-    print "Mean: %8.5f" %(sg_mu)
-    print "Variance: %8.5f \n" %(sg_var)
+    print "Mean: %12.5e" %(sg_mu)
+    print "Variance: %12.5e \n" %(sg_var)
 
     print "Sensitivities of k-inf (at mean xsecs) to:"
-    print "(Calculated using interpolant, central differencing with Delta=.00001)"
+    print "(Calculated using interpolant, central differencing with +/- 1%)"
 
     xsecs = f.dactive_mu
-    kmean = f.evalf_unnormalized_x(xsecs)
     sg_sensitivities = np.zeros(5)
     for i in range(5):
-        xp = np.copy(xsecs); xp[i] += 0.001
-        xm = np.copy(xsecs); xm[i] -= 0.001
-        # Map values in xm,xp to hypercube
-        xp = kinf_interp.f.hypercube2parameters_map(xp,'hypercube')
-        xm = kinf_interp.f.hypercube2parameters_map(xm,'hypercube')
-        kp = kinf_interp(xp)
-        km = kinf_interp(xm)
-        sg_sensitivities[i] = (kp-km)*xsecs[i]/(2*.00001*kmean)
+        tmp = np.copy(xsecs)
+        tmp[i] *= 1.01
+        tmpx = f.hypercube2parameters_map(tmp,'hypercube')
+        f_fwd = kinf_interp(tmpx)
+        tmp[i] *= .99/1.01
+        tmpx = f.hypercube2parameters_map(tmp,'hypercube')
+        f_bkd = kinf_interp(tmpx)
+        sg_sensitivities[i] = (f_fwd-f_bkd)/(sg_mu*0.02)
 
-    print "absorption 1: %8.5f" %(sg_sensitivities[0])
-    print "absorption 2: %8.5f" %(sg_sensitivities[1])
-    print "nu-fission 1: %8.5f" %(sg_sensitivities[2])
-    print "nu-fission 2: %8.5f" %(sg_sensitivities[3])
-    print "downscatter : %8.5f \n" %(sg_sensitivities[4])
+    print "absorption 1: %12.5e" %(sg_sensitivities[0])
+    print "absorption 2: %12.5e" %(sg_sensitivities[1])
+    print "nu-fission 1: %12.5e" %(sg_sensitivities[2])
+    print "nu-fission 2: %12.5e" %(sg_sensitivities[3])
+    print "downscatter : %12.5e \n" %(sg_sensitivities[4])
 
 def oned_weights(quad_type):
     """
@@ -121,7 +120,7 @@ def oned_weights(quad_type):
     """
     
     from dimension_reduction import Surrogate
-    import matplotlib.pylab as pl
+##  import matplotlib.pylab as pl
     print ("Perform anchored-ANOVA decomposition on k-inf and analyze the \n"
            "importance of 1D components.")
 
@@ -140,7 +139,7 @@ def oned_weights(quad_type):
                         'diff_var_order': 1e-3}                       
     sparse_grid_args = {'error_crit1': 1e-3,
                         'error_crit2': 1e-3,
-                        'error_crit3': 1e-4,
+                        'error_crit3': 1e-6,
                         'max_smolyak_level': 6,
                         'min_smolyak_level': 1,
                         'quad_data': quad_data}
@@ -151,21 +150,89 @@ def oned_weights(quad_type):
     weights = abs(np.array(kinf.dimensions_weight['weight']))
     weights /= sum(weights)
 
-    pl.figure(1, figsize=(6,6))
+    print "First order Zabaras weights are..."
+    for i in range(5):
+        print "Dimension: %2d  Weight: %12.5e" %(i,kinf.dimensions_weight['weight'][i])
 
-    # The slices will be ordered and plotted counter-clockwise.
-    labels = '$\Sigma_{a1}$', '$\Sigma_{a2}$', r'$\nu\Sigma_{f1}$', r'$\nu\Sigma_{f2}$', '$\Sigma_{12}$'
-    pl.pie(weights, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90)
-    pl.title('Relative Weight of 1D anchored-ANOVA Components', bbox={'facecolor':'0.8', 'pad':5})
-    pl.show()
+    print " "
+    print "Normalized weights are (%)..."
+    for i in range(5):
+        print "Dimension: %2d  Weight: %5.2f" %(i,100.*weights[i])
+    
+##    pl.figure(1, figsize=(6,6))
+##
+##    # The slices will be ordered and plotted counter-clockwise.
+##    labels = '$\Sigma_{a1}$', '$\Sigma_{a2}$', r'$\nu\Sigma_{f1}$', r'$\nu\Sigma_{f2}$', '$\Sigma_{12}$'
+##    pl.pie(weights, labels=labels, autopct='%1.1f%%', shadow=True, startangle=90)
+##    pl.title('Relative Weight of 1D anchored-ANOVA Components', bbox={'facecolor':'0.8', 'pad':5})
+##    pl.show()
+
+def full_rom(quad_type,nsamps=300,seed=414):
+    
+    from dimension_reduction import Surrogate
+
+    print ("Building every component of an anchored-ANOVA decomposition to show \n"
+           "it can exactly reproduce the true function.")
+   
+    if quad_type == 'cc':
+        print "Using Clenshaw-Curtis abscissas to form sparse grids. \n"
+        from Clenshaw_Curtis import cc_data_main
+        quad_data = cc_data_main()
+    elif quad_type == 'gp':
+        print "Using Gauss-Patterson abscissas to form sparse grids. \n"
+        from Gauss_Patterson import gp_data_main
+        quad_data = gp_data_main()
+
+    surrogate_args =   {'max_weight_frac': 0.0,
+                        'diff_var_order': 1e-15}                       
+    sparse_grid_args = {'error_crit1': 1e-3,
+                        'error_crit2': 1e-3,
+                        'error_crit3': 1e-6,
+                        'max_smolyak_level': 6,
+                        'min_smolyak_level': 1,
+                        'quad_data': quad_data}
+
+    kinf = Surrogate(surrogate_args,sparse_grid_args)
+    kmean,kvar = kinf._get_surrogate_stats(nsamps=nsamps,seed=seed)
+    print "\n"
+    print ("Sampling full anchored-ANOVA decomp using %d samples and "
+           "seed number %d. \n") %(nsamps,seed)
+    print "Mean: %12.5e" %(kmean)
+    print "Variance: %12.5e \n" %(kvar)
+
+    print "Sensitivities of k-inf (at mean xsecs) to:"
+    print "(Calculated using full anchored-ANOVA decomp, central differencing with +/- 1%)"
+
+    kinf_f = kinf.objective_function
+    xsecs = kinf_f.dactive_mu
+    sg_sensitivities = np.zeros(5)
+    for i in range(5):
+        tmp = np.copy(xsecs)
+        tmp[i] *= 1.01
+        tmpx = kinf_f.hypercube2parameters_map(tmp,'hypercube')
+        f_fwd = kinf(tmpx)
+        tmp[i] *= .99/1.01
+        tmpx = kinf_f.hypercube2parameters_map(tmp,'hypercube')
+        f_bkd = kinf(tmpx)
+        sg_sensitivities[i] = (f_fwd-f_bkd)/(kmean*0.02)
+
+    print "absorption 1: %12.5e" %(sg_sensitivities[0])
+    print "absorption 2: %12.5e" %(sg_sensitivities[1])
+    print "nu-fission 1: %12.5e" %(sg_sensitivities[2])
+    print "nu-fission 2: %12.5e" %(sg_sensitivities[3])
+    print "downscatter : %12.5e \n" %(sg_sensitivities[4])
 
 if __name__ == '__main__':   
     mc_sampling_analytic()
     sandwich_formula_analytic()
     full_sparse_grid('cc')
-    full_sparse_grid('gp')
     oned_weights('cc')
+    full_rom('cc')
+
+    full_sparse_grid('gp')
     oned_weights('gp')
+    full_rom('gp')
+    
 
 
 
