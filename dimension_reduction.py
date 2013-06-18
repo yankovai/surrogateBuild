@@ -389,6 +389,7 @@ class Surrogate:
         ----------
         x : float array
             The point at which the surrogate is to be evaluated.
+            x must be in the hypercube. 
             
         Returns
         -------

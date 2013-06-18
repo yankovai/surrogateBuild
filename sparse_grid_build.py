@@ -230,11 +230,11 @@ class Sparse_Grid():
                 indice_need_feval.append(i)
                 
         # Evaluate f(x) for x never before evaluated (multiprocessing)             
-    #    po = Pool()
-    #    fvals_out = po.map(self.f,points_need_feval)
+     #   po = Pool()
+     #   fvals_out = po.map(self.f,points_need_feval)
         fvals_out = [self.f(xi) for xi in points_need_feval]
-    #    po.close()
-    #    po.join()
+     #   po.close()
+     #   po.join()
 
         # Update
         for i,fi in zip(indice_need_feval,fvals_out):
@@ -252,7 +252,7 @@ class Sparse_Grid():
         ----------
         x : float
             The N-dimensional point at which the surrogate model is evaluated.
-            
+            The point must be in the hypercube. 
         Returns
         -------
         interpolant_val : float
@@ -323,14 +323,14 @@ class Sparse_Grid():
 ##
 ##cc_data = cc_data_main()
 ###gp_data = gp_data_main()
-##f = Problem_Function([0,1,2])
+##f = Problem_Function([7,13,14,15,16,17,18,19,21])
 ##
 ##sparse_grid_args = {'function': f,
-##                    'N': 3,
+##                    'N': 9,
 ##                    'error_crit1': 1e-3,
 ##                    'error_crit2': 1e-3,
 ##                    'error_crit3': 1e-4,
-##                    'max_smolyak_level': 5,
+##                    'max_smolyak_level': 6,
 ##                    'min_smolyak_level': 1,
 ##                    'quad_data': cc_data}
 ##

@@ -103,7 +103,7 @@ class Problem_Function(Hypercube):
         y0 = [P0] + list(C0) + [Tc0] + [Tf0]
         args = tuple(x) + (Tc0,) + (Tf0,) + (Tin,) + (L,)
         # Solve
-        t = np.linspace(0.,50.,1000)
+        t = np.linspace(0.,30.,500)  # changed from (0.,50.,1000)
         soln = odeint(self.__kth_system,y0,t,args)
 
         # Return relative maximum power
