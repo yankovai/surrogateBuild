@@ -48,7 +48,7 @@ class HDMR_Component(Sparse_Grid):
         self._get_subcomponent_indices()
 
         # Get mean and variance of component
-        self._get_component_stats()
+##        self._get_component_stats()
 
     def _get_subcomponent_indices(self):
         """
@@ -90,7 +90,7 @@ class HDMR_Component(Sparse_Grid):
         # Map parameter domain to hypercube domain
         x = self.f.hypercube2parameters_map(x,'hypercube')
         # Evaluate HDMR component at sampled values
-        fvals = np.array([self.evaluate(xi) for xi in x])
+        fvals = self.evaluate(x)
         
         # Make 'hdmr_component_mean' and 'hdmr_component_var' class variables
         self.hdmr_component_mean = np.mean(fvals)
@@ -113,18 +113,21 @@ class HDMR_Component(Sparse_Grid):
             component. 
         """
 
+        # Only evaluates 1D components
         # Initialize
         hdmr_component_val = self(x) - self.base_point
         dactive = self.hdmr_components['dactive']
         fdactive = self.hdmr_components['fdactive']
 
-        # Subtract contributions from constituents of current component
-        for i in self.subcomponent_indices:
-            indx = dactive.index(i)
-            xdims = list(dactive[indx])
-            xval = np.zeros(self.f.d)
-            xval[self.f.dactive] = x
-            hdmr_component_val -= fdactive[indx].evaluate(xval[xdims])
+##        nx = x.shape[0]
+##     
+##        # Subtract contributions from constituents of current component
+##        for i in self.subcomponent_indices:
+##            indx = dactive.index(i)
+##            xdims = list(dactive[indx])
+##            xval = np.zeros([nx, self.f.d])            
+##            xval[:,self.f.dactive] = x
+##            hdmr_component_val -= fdactive[indx].evaluate(xval[:,xdims])
 
         return hdmr_component_val
 
@@ -202,11 +205,12 @@ class Surrogate:
         self.hdmr_components = {'dactive': [], 'fdactive': []}
 
         # Initialize objective function
-        P = Problem_Function(dactive=[])
+        P = Problem_Function([],sparse_grid_args['quad_type'])
         objectivef_d = P.d
         # Function evaluated at anchor
         self.base_point = P([])
-        self.objective_function = Problem_Function(range(0,objectivef_d))
+        self.objective_function = Problem_Function(range(objectivef_d),
+                                                   sparse_grid_args['quad_type'])
 
         # Initialize surrogate parameters
         self.surrogate_var = [0.]
@@ -246,9 +250,12 @@ class Surrogate:
             
         for dactive in combinations(range(dtotal),1):
             self.message.build_hdmr_component(dactive)
-            f = Problem_Function(dactive)
+            f = Problem_Function(dactive, init_args['quad_type'])
             init_args['function'] = f
             H = HDMR_Component(dactive,hdmr_comps,base_point,init_args)
+            ########
+            H._get_component_stats() 
+            
             hdmr_comps['dactive'].append(dactive)
             hdmr_comps['fdactive'].append(H)
             dim_weight['dactive'].append(dactive)
@@ -276,7 +283,7 @@ class Surrogate:
 
         # Make 'important_dimensions' a class variable
         self.important_dimensions = important_dimensions
-
+          
     def _higher_order_build(self):
         """
         Based on the dimensions included in 'important_dimensions' from the
@@ -291,7 +298,7 @@ class Surrogate:
         init_args = self.sparse_grid_args
         hdmr_comps = self.hdmr_components
         base_point = self.base_point
-        dim_weight = self.dimensions_weight
+##        dim_weight = self.dimensions_weight
         converged = False
 
         for surrogate_order in range(2,nimportant_dimensions + 1):
@@ -299,18 +306,18 @@ class Surrogate:
             init_args['N'] = surrogate_order
             for dactive in combinations(important_dimensions,surrogate_order):
                 self.message.build_hdmr_component(dactive)
-                f = Problem_Function(dactive)
+                f = Problem_Function(dactive, init_args['quad_type'])
                 init_args['function'] = f
                 H = HDMR_Component(dactive,hdmr_comps,base_point,init_args)
                 hdmr_comps['dactive'].append(dactive)
                 hdmr_comps['fdactive'].append(H)
-                dim_weight['dactive'].append(dactive)
+##                dim_weight['dactive'].append(dactive)
 
-                # Calculate weights 
-                if self.surrogate_mean != 0.:
-                    dim_weight['weight'].append(H.hdmr_component_mean/self.surrogate_mean)
-                else:
-                    dim_weight['weight'].append(H.hdmr_component_mean)
+##                # Calculate weights 
+##                if self.surrogate_mean != 0.:
+##                    dim_weight['weight'].append(H.hdmr_component_mean/self.surrogate_mean)
+##                else:
+##                    dim_weight['weight'].append(H.hdmr_component_mean)
                 
             # Check for convergence
             converged = self._check_convergence()
@@ -375,8 +382,8 @@ class Surrogate:
         x = np.random.multivariate_normal(mu,covmatrix,nsamps)
         # Map parameter domain to hypercube domain
         x = self.objective_function.hypercube2parameters_map(x,'hypercube')
-        # Evaluate surrogate at sampled values 
-        fvals = np.array([self(xi) for xi in x])
+        # Evaluate surrogate at sampled values
+        fvals = self(x)
         
         surrogate_mean = np.mean(fvals)
         surrogate_var = np.var(fvals)
@@ -389,7 +396,7 @@ class Surrogate:
         ----------
         x : float array
             The point at which the surrogate is to be evaluated.
-            x must be in the hypercube. 
+            x must be in hpercube.
             
         Returns
         -------
@@ -401,10 +408,16 @@ class Surrogate:
         surrogate_val = self.base_point
         fdactive = self.hdmr_components['fdactive']
         dactive = self.hdmr_components['dactive']
-        
+
+        x_at_fdactive = []
+
         for h,d in zip(fdactive,dactive):
-            surrogate_val += h.evaluate(x[list(d)])
+            x_at_fdactive.append(h(x[:,d]) - self.base_point)
+
+            for i in h.subcomponent_indices:
+                indx = dactive.index(i)
+                x_at_fdactive[-1] -= x_at_fdactive[indx]
+
+        surrogate_val += sum(x_at_fdactive)
 
         return surrogate_val
-
-

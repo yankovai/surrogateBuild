@@ -1,7 +1,9 @@
 from combinatorics_routines import *
-from multiprocessing import Pool
 from status_messages import Status_Message_SparseGrid
 
+from multiprocessing import Pool, cpu_count
+from multiprocess_evaluate_routines import *
+import functools
 
 class Sparse_Grid():
     """
@@ -230,11 +232,11 @@ class Sparse_Grid():
                 indice_need_feval.append(i)
                 
         # Evaluate f(x) for x never before evaluated (multiprocessing)             
-     #   po = Pool()
-     #   fvals_out = po.map(self.f,points_need_feval)
+    #    po = Pool()
+    #    fvals_out = po.map(self.f,points_need_feval)
         fvals_out = [self.f(xi) for xi in points_need_feval]
-     #   po.close()
-     #   po.join()
+    #    po.close()
+    #    po.join()
 
         # Update
         for i,fi in zip(indice_need_feval,fvals_out):
@@ -243,45 +245,44 @@ class Sparse_Grid():
             self._fevals_unique['f'].append(fi)   
         self._indice_history['f'] += ftemp
         # Calculate hierarchical surplus
-        self._indice_history['surplus'] += [fi-self(xi) for fi,xi
-                                            in zip(ftemp,new_nodes)]
-
+        sg_vals = self(new_nodes)
+        self._indice_history['surplus'] += [fi-sg_val for fi,sg_val
+                                            in zip(ftemp,sg_vals)]
+        
     def __call__(self,x):
         """
         Parameters
         ----------
         x : float
             The N-dimensional point at which the surrogate model is evaluated.
-            The point must be in the hypercube. 
+            x must be in the hypercube.
+            
         Returns
         -------
         interpolant_val : float
             The value of the surrogate at x, evaluated at the highest smolyak
             level calculated. 
         """
-
-        eps = np.finfo(np.float64).eps
-        n = self._number_terms
-        iindices = self._indice_history['iindices'][0:n]
-        jindices = self._indice_history['jindices'][0:n]
-        surplus = self._indice_history['surplus'][0:n]
         
-        if n > 0:
-            interpolant_val = 0.
-            for i,j,s in zip(iindices,jindices,surplus):
-                a = 1.
-                for d in range(0,self.N):
-                    # Barycentric interpolation
-                    w = self.quad_data[i[d]].bweights
-                    xi = self.quad_data[i[d]].knots 
-                    dx = x[d] - xi
-                    tmp = w/(dx + eps)
-                    a *= tmp[j[d]-1]/sum(tmp)
-                a *= s
-                interpolant_val += a    
-            return interpolant_val    
+        current_sparse_grid = functools.partial(evaluate_sparse_grid,
+                                                ihistory = self._indice_history,
+                                                nterms = self._number_terms,
+                                                quad_data = self.quad_data,
+                                                N = self.N)
+        x = np.array(x)
+        
+        csize = np.ceil(float(x.shape[0])/cpu_count())
+
+        if csize == 1:
+            po = Pool(1)
         else:
-            return 0.
+            po = Pool()
+        
+        sg_vals = po.map(current_sparse_grid, x, chunksize=int(csize))
+        po.close()
+        po.join()
+
+        return sg_vals 
 
     def surrogate_mean_variance(self,nsamps=100,seed=414):
         """
@@ -311,29 +312,34 @@ class Sparse_Grid():
                                               nsamps)
         # Map values in xsamp to hypercube
         xsamp = self.f.hypercube2parameters_map(xsamp,'hypercube')
-         
-        fxsamp = np.array([self(x) for x in xsamp])
+        fxsamp = np.array(self(xsamp))
         mu = np.mean(fxsamp)
         var = np.var(fxsamp)
+        
         return mu, var
 
 ##from problem_function import Problem_Function
 ##from Clenshaw_Curtis import cc_data_main
-###from Gauss_Patterson import gp_data_main
+##import time
 ##
+##time_s = time.time()
+#####from Gauss_Patterson import gp_data_main
+####
 ##cc_data = cc_data_main()
-###gp_data = gp_data_main()
-##f = Problem_Function([7,13,14,15,16,17,18,19,21])
+##gp_data = gp_data_main()
+##f = Problem_Function([0,1,2,3,4],'cc')
 ##
 ##sparse_grid_args = {'function': f,
-##                    'N': 9,
-##                    'error_crit1': 1e-3,
-##                    'error_crit2': 1e-3,
-##                    'error_crit3': 1e-4,
+##                    'N': 5,
+##                    'error_crit1': 1e-5,
+##                    'error_crit2': 1e-5,
+##                    'error_crit3': 1e-5,
 ##                    'max_smolyak_level': 6,
 ##                    'min_smolyak_level': 1,
 ##                    'quad_data': cc_data}
 ##
 ##S = Sparse_Grid(sparse_grid_args)
 ##S.build_surrogate()
+##
+##print time.time() - time_s
 

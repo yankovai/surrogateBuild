@@ -12,7 +12,7 @@ def anchored_anova_analysis(quad_type,nsamps=100,seed=414):
            "power and analyze the importance of each dimension. \n")
 
     # Initialize
-    f = Problem_Function(range(22))
+    f = Problem_Function(range(22),quad_type)
     np.random.seed(seed)
     mu = f.dactive_mu
     covmatrix = f.dactive_covmatrix
@@ -39,12 +39,13 @@ def anchored_anova_analysis(quad_type,nsamps=100,seed=414):
         quad_data = gp_data_main()
 
     surrogate_args =   {'max_weight_frac': 0.02, # 0.02 
-                        'diff_var_order': 1e-6}                       
+                        'diff_var_order': 1e-06}  # 1e-6                    
     sparse_grid_args = {'error_crit1': 1e-3,
                         'error_crit2': 1e-3,
                         'error_crit3': 1e-4,
                         'max_smolyak_level': 6,
                         'min_smolyak_level': 1,
+                        'quad_type': quad_type,
                         'quad_data': quad_data}
 
     print ("Performing dimension reduction. To identify the important dimensions \n"
@@ -96,7 +97,7 @@ def anchored_anova_analysis(quad_type,nsamps=100,seed=414):
     
     # Sensitivity analysis
     print ("Performing sensitivity of true function output to all dimensions... \n"
-           "Using central differencing with Delta = 1e-6")
+           "Using central differencing with +/- 1%")
     
     for j in range(22):
         tmp = np.copy(mu)
@@ -111,11 +112,11 @@ def anchored_anova_analysis(quad_type,nsamps=100,seed=414):
     print " "
 
     print ("Performing sensitivity analysis of 1D anchored-ANOVA components \n"
-           "Using central differencing with Delta = 1e-6")
+           "Using central differencing with +/- 1%")
 
     comps = kth.hdmr_components['fdactive']
     for j in range(22):
-        tmp = np.copy(comps[j].f.dactive_mu)
+        tmp = np.copy(comps[j].f.dactive_mu); tmp.resize(1,1)
         tmp *= 1.01
         tmpx = comps[j].f.hypercube2parameters_map(tmp,'hypercube')
         f_fwd = comps[j].evaluate(tmpx)
@@ -130,16 +131,16 @@ def anchored_anova_analysis(quad_type,nsamps=100,seed=414):
            "Higher order components were included in the ROM until the \n"
            "variance between successive levels of interpolation changed with \n"
            "a relaitve difference of < 1e-6."
-           "Using central differencing with Delta = 1e-6.")
+           "Using central differencing with +/- 1%.")
 
     for j in range(22):
-        tmp = np.copy(kth.objective_function.mu)
-        tmp[j] *= 1.01
+        tmp = np.copy(kth.objective_function.mu); tmp.resize(1,22)
+        tmp[0,j] *= 1.01
         tmpx = kth.objective_function.hypercube2parameters_map(tmp,'hypercube')
-        f_fwd = kth(tmpx)
-        tmp[j] *= .99/1.01
+        f_fwd = kth(tmpx)[0]
+        tmp[0,j] *= .99/1.01
         tmpx = kth.objective_function.hypercube2parameters_map(tmp,'hypercube')
-        f_bkd = kth(tmpx)
+        f_bkd = kth(tmpx)[0]
         sensitivity = (f_fwd-f_bkd)/(kth.surrogate_mean[-1]*0.02)
         print "Dimension: %2d  Sensitivity: %12.5e  Description: %s" %(j,sensitivity,params[j]) 
     print " "
@@ -166,7 +167,7 @@ def full_sparse_grid_analysis(quad_type):
         quad_data = gp_data_main()
 
     dactive = [7,13,14,15,16,17,18,19,21]
-    f = Problem_Function(dactive)
+    f = Problem_Function(dactive,quad_type)
 
     sparse_grid_args = {'function': f,
                         'N': 9,
@@ -175,6 +176,7 @@ def full_sparse_grid_analysis(quad_type):
                         'error_crit3': 1e-4,
                         'max_smolyak_level': 6,
                         'min_smolyak_level': 1,
+                        'quad_type': quad_type,
                         'quad_data': quad_data}
 
     S = Sparse_Grid(sparse_grid_args)
@@ -189,19 +191,24 @@ def full_sparse_grid_analysis(quad_type):
     print "Variance: %11.5e \n" %(S._surrogate_var)
 
     print ("Performing sensitivity analysis of 9D sparse grid interpolant. \n"
-           "Using central differencing with Delta = 1e-6.")
+           "Using central differencing with +/- 1%.")
 
     for i in range(0,9):
-        tmp = np.copy(S.f.dactive_mu)
-        tmp[i] *= 1.01
+        tmp = np.copy(S.f.dactive_mu); tmp.resize(1,9)
+        tmp[0,i] *= 1.01
         tmpx = S.f.hypercube2parameters_map(tmp,'hypercube')
-        f_fwd = S(tmpx)
-        tmp[i] *= .99/1.01
+        f_fwd = S(tmpx)[0]
+        tmp[0,i] *= .99/1.01
         tmpx = S.f.hypercube2parameters_map(tmp,'hypercube')
-        f_bkd = S(tmpx)
+        f_bkd = S(tmpx)[0]
         sensitivity = (f_fwd-f_bkd)/(S._surrogate_mean*0.02)
         print "Dimension: %2d  Sensitivity: %12.5e" %(dactive[i],sensitivity)    
            
 if __name__ == '__main__':
+    # Clenshaw-Curtis
     anchored_anova_analysis('cc')
     full_sparse_grid_analysis('cc')
+    # Gauss-Patterson
+    anchored_anova_analysis('gp')
+    full_sparse_grid_analysis('gp')
+    
