@@ -1,12 +1,12 @@
 import numpy as np
 from problem_function import Problem_Function
 
-def mc_sampling_analytic(nsamps=300,seed=414):
+def mc_sampling_analytic(nsamps=100,seed=414):
     """
     Use Monte-Carlo sampling to get the mean and variance of the true function.
     """
 
-    f = Problem_Function([0,1,2,3,4])
+    f = Problem_Function([0,1,2,3,4],'cc') # quad_type just dummy variable here
     np.random.seed(seed)
     x = np.random.multivariate_normal(f.dactive_mu,f.dactive_covmatrix,nsamps)
     fvals = np.array([f.evalf_unnormalized_x(xi) for xi in x])
@@ -23,7 +23,7 @@ def sandwich_formula_analytic():
     Sandwich formula to get variance. Also, analytic sensitivities.
     """
 
-    f = Problem_Function([0,1,2,3,4])
+    f = Problem_Function([0,1,2,3,4],'cc') # quad_type just dummy variable here
     xsecs = f.dactive_mu
     kmean = f.evalf_unnormalized_x(xsecs)
 
@@ -54,7 +54,7 @@ def sandwich_formula_analytic():
     print "nu-fission 2: %12.5e" %(dk_dnufis2*xsecs[3]/kmean)
     print "downscatter : %12.5e \n" %(dk_dscat*xsecs[4]/kmean)
 
-def full_sparse_grid(quad_type,nsamps=300,seed=414):
+def full_sparse_grid(quad_type,nsamps=100,seed=414):
     """
     Build full, 5 dimensional sparse grid for k-inf and calculate mean, variance,
     and sensitivities using central differencing.
@@ -73,14 +73,15 @@ def full_sparse_grid(quad_type,nsamps=300,seed=414):
         from Gauss_Patterson import gp_data_main
         quad_data = gp_data_main()
 
-    f = Problem_Function([0,1,2,3,4])
+    f = Problem_Function([0,1,2,3,4],quad_type)
     sparse_grid_args = {'function': f,
                         'N': 5,
                         'error_crit1': 1e-3,
                         'error_crit2': 1e-3,
                         'error_crit3': 1e-6,
                         'max_smolyak_level': 6,
-                        'min_smolyak_level': 1, 
+                        'min_smolyak_level': 1,
+                        'quad_type': quad_type,
                         'quad_data': quad_data}
 
     kinf_interp = Sparse_Grid(sparse_grid_args)
@@ -99,13 +100,13 @@ def full_sparse_grid(quad_type,nsamps=300,seed=414):
     xsecs = f.dactive_mu
     sg_sensitivities = np.zeros(5)
     for i in range(5):
-        tmp = np.copy(xsecs)
-        tmp[i] *= 1.01
+        tmp = np.copy(xsecs); tmp.resize(1,5)
+        tmp[0,i] *= 1.01
         tmpx = f.hypercube2parameters_map(tmp,'hypercube')
-        f_fwd = kinf_interp(tmpx)
-        tmp[i] *= .99/1.01
+        f_fwd = kinf_interp(tmpx)[0]
+        tmp[0,i] *= .99/1.01
         tmpx = f.hypercube2parameters_map(tmp,'hypercube')
-        f_bkd = kinf_interp(tmpx)
+        f_bkd = kinf_interp(tmpx)[0]
         sg_sensitivities[i] = (f_fwd-f_bkd)/(sg_mu*0.02)
 
     print "absorption 1: %12.5e" %(sg_sensitivities[0])
@@ -124,7 +125,7 @@ def oned_weights(quad_type):
     print ("Perform anchored-ANOVA decomposition on k-inf and analyze the \n"
            "importance of 1D components.")
 
-    f = Problem_Function([0,1,2,3,4])
+    f = Problem_Function([0,1,2,3,4],quad_type)
    
     if quad_type == 'cc':
         print "Using Clenshaw-Curtis abscissas to form sparse grids. \n"
@@ -142,10 +143,9 @@ def oned_weights(quad_type):
                         'error_crit3': 1e-6,
                         'max_smolyak_level': 6,
                         'min_smolyak_level': 1,
+                        'quad_type': quad_type,
                         'quad_data': quad_data}
 
-    print ("In this case the 1D anchored-ANOVA components can exactly reproduce \n"
-           "the variance of k-inf. \n")
     kinf = Surrogate(surrogate_args,sparse_grid_args)
     weights = abs(np.array(kinf.dimensions_weight['weight']))
     weights /= sum(weights)
@@ -167,7 +167,7 @@ def oned_weights(quad_type):
 ##    pl.title('Relative Weight of 1D anchored-ANOVA Components', bbox={'facecolor':'0.8', 'pad':5})
 ##    pl.show()
 
-def full_rom(quad_type,nsamps=300,seed=414):
+def full_rom(quad_type,nsamps=100,seed=414):
     
     from dimension_reduction import Surrogate
 
@@ -190,15 +190,16 @@ def full_rom(quad_type,nsamps=300,seed=414):
                         'error_crit3': 1e-6,
                         'max_smolyak_level': 6,
                         'min_smolyak_level': 1,
+                        'quad_type': quad_type,
                         'quad_data': quad_data}
 
     kinf = Surrogate(surrogate_args,sparse_grid_args)
-    kmean,kvar = kinf._get_surrogate_stats(nsamps=nsamps,seed=seed)
+##    kmean,kvar = kinf._get_surrogate_stats(nsamps=nsamps,seed=seed)
     print "\n"
-    print ("Sampling full anchored-ANOVA decomp using %d samples and "
-           "seed number %d. \n") %(nsamps,seed)
-    print "Mean: %12.5e" %(kmean)
-    print "Variance: %12.5e \n" %(kvar)
+##    print ("Sampling full anchored-ANOVA decomp using %d samples and "
+##           "seed number %d. \n") %(nsamps,seed)
+##    print "Mean: %12.5e" %(kmean)
+##    print "Variance: %12.5e \n" %(kvar)
 
     print "Sensitivities of k-inf (at mean xsecs) to:"
     print "(Calculated using full anchored-ANOVA decomp, central differencing with +/- 1%)"
@@ -207,14 +208,14 @@ def full_rom(quad_type,nsamps=300,seed=414):
     xsecs = kinf_f.dactive_mu
     sg_sensitivities = np.zeros(5)
     for i in range(5):
-        tmp = np.copy(xsecs)
-        tmp[i] *= 1.01
+        tmp = np.copy(xsecs); tmp.resize(1,5)
+        tmp[0,i] *= 1.01
         tmpx = kinf_f.hypercube2parameters_map(tmp,'hypercube')
-        f_fwd = kinf(tmpx)
-        tmp[i] *= .99/1.01
+        f_fwd = kinf(tmpx)[0]
+        tmp[0,i] *= .99/1.01
         tmpx = kinf_f.hypercube2parameters_map(tmp,'hypercube')
-        f_bkd = kinf(tmpx)
-        sg_sensitivities[i] = (f_fwd-f_bkd)/(kmean*0.02)
+        f_bkd = kinf(tmpx)[0]
+        sg_sensitivities[i] = (f_fwd-f_bkd)/(kinf.surrogate_mean[-1]*0.02)
 
     print "absorption 1: %12.5e" %(sg_sensitivities[0])
     print "absorption 2: %12.5e" %(sg_sensitivities[1])
@@ -228,10 +229,9 @@ if __name__ == '__main__':
     full_sparse_grid('cc')
     oned_weights('cc')
     full_rom('cc')
-
-    full_sparse_grid('gp')
-    oned_weights('gp')
-    full_rom('gp')
+   # full_sparse_grid('gp')
+   # oned_weights('gp')
+   # full_rom('gp')
     
 
 

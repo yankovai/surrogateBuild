@@ -23,7 +23,6 @@ class Hypercube:
         """
 
         self.bounds = 6.*np.ones(self.d)
-        self.quad_type = 'gp'
 
     def hypercube2parameters_map(self,x,map2):
         """
@@ -51,9 +50,9 @@ class Hypercube:
             qmin, qmax = -1., 1.
             dq = 2.
         elif self.quad_type == 'cc':
-            qmin, qmax = 0., 1.
-            dq = 1.
-        
+            qmin, qmax = -1., 1.
+            dq = 2.
+
         if map2 == 'hypercube':
             # Map from paramater space to hypercube
             dactive = self.dactive
@@ -136,7 +135,7 @@ class Hypercube:
         if self.quad_type == 'gp':
             anchor = np.zeros(self.d)
         elif self.quad_type == 'cc':
-            anchor = .5*np.ones(self.d)
+            anchor = np.zeros(self.d)
 
         anchor[self.dactive] = x
         return self.evalf_normalized_x(anchor)

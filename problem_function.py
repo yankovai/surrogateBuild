@@ -8,7 +8,7 @@ class Problem_Function(Hypercube):
     information about the input variables.
     """
     
-    def __init__(self,dactive):
+    def __init__(self,dactive,quad_type):
         """
         Parameters
         ----------
@@ -55,6 +55,7 @@ class Problem_Function(Hypercube):
                 covmatrix[i,j] = self.corrmatrix[i,j]*s[i]*s[j]
         self.covmatrix = covmatrix
         self.dactive = list(dactive)
+        self.quad_type = quad_type
         
         Hypercube.__init__(self)
         self._dactive_covariance()
@@ -75,8 +76,6 @@ class Problem_Function(Hypercube):
 
         # Return k-inf
         return (x[1]*x[2] + x[4]*x[3])/(x[1]*(x[0] + x[4]))
-
-
 
 
 
