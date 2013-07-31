@@ -231,12 +231,15 @@ class Sparse_Grid():
                 points_need_feval.append(np.array(point))
                 indice_need_feval.append(i)
                 
-        # Evaluate f(x) for x never before evaluated (multiprocessing)             
-    #    po = Pool()
-    #    fvals_out = po.map(self.f,points_need_feval)
-        fvals_out = [self.f(xi) for xi in points_need_feval]
-    #    po.close()
-    #    po.join()
+        #####
+        po = Pool()  
+        fvals_out = po.map(self.f, points_need_feval)
+##        fvals_out = [self.f(xi) for xi in points_need_feval]
+        po.close()
+        po.join()
+        #####
+
+        
 
         # Update
         for i,fi in zip(indice_need_feval,fvals_out):
@@ -282,7 +285,7 @@ class Sparse_Grid():
         po.close()
         po.join()
 
-        return sg_vals 
+        return np.array(sg_vals) 
 
     def surrogate_mean_variance(self,nsamps=100,seed=414):
         """

@@ -354,7 +354,7 @@ class Surrogate:
 
         return converged
 
-    def _get_surrogate_stats(self,nsamps=100,seed=414):
+    def _get_surrogate_stats(self,nsamps=500,seed=414):
         """
         Parameters
         ----------

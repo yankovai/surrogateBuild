@@ -1,0 +1,48 @@
+ ref_cond   0.0 277.85 0.766 277.85
+ 
+! Assembly 7, Control rods in 
+ comp_num    1
+ base_macro  {in_trsp1}  {in_absp1}  {in_nufs1}  1.081010E-13  {in_dwnsc}
+             {in_trsp2}  {in_absp2}  {in_nufs2}  2.486270E-12
+
+ ADF         {in_adfa1}  {in_adfa2}
+
+! Assembly 7, Control rods out 
+ comp_num    2
+ base_macro  {ot_trsp1}  {ot_absp1}  {ot_nufs1}  1.113499E-13  {ot_dwnsc}
+             {ot_trsp2}  {ot_absp2}  {ot_nufs2}  2.440097E-12
+
+ ADF         {ot_adfa1}  {ot_adfa2}
+
+! Reflector
+ comp_num    9
+ base_macro  {rf_trsp1}  {rf_absp1}  0.000000E+00  0.000000E+00  {rf_dwnsc}
+             {rf_trsp2}  {rf_absp2}  0.000000E+00  0.000000E+00
+                                     
+ ADF         {rf_adfa1}  {rf_adfa2}
+ 
+! delcr_comp 1  1  !compostions that this set applies
+!!------------------------------------------------------------------------------
+! delcr_base  {transport1}  {absorption1}  {nufission1}  -3.248900E-15  {downscatter}
+!             {transport2}  {absorption2}  {nufission2}   4.617300E-14
+!
+!!Delayed Neutron Precurosor Data                         
+!!--------------------------------------------------------
+! dnp_ngrp   6                                            
+! kin_comp   1  1      
+! dnp_lambda {in_lamb1}  {in_lamb2}  {in_lamb3}   {in_lamb4}  {in_lamb5}  {in_lamb6}
+! dnp_beta   {in_beta1}  {in_beta2}  {in_beta3}   {in_beta4}  {in_beta5}  {in_beta6}
+! neut_velo  {in_velo1}  {in_velo2}  ! Neutron Velocities (cm/sec)
+!!
+! kin_comp   1  2     
+! dnp_lambda {ot_lamb1}  {ot_lamb2}  {ot_lamb3}   {ot_lamb4}  {ot_lamb5}  {ot_lamb6}
+! dnp_beta   {ot_beta1}  {ot_beta2}  {ot_beta3}   {ot_beta4}  {ot_beta5}  {ot_beta6}
+! neut_velo  {ot_velo1}  {ot_velo2}  ! Neutron Velocities (cm/sec) 
+!!
+! kin_comp   1  3     
+! dnp_lambda 0 0 0 0 0 0
+! dnp_beta   0 0 0 0 0 0
+! neut_velo  {rf_velo1}  {rf_velo2}  ! Neutron Velocities (cm/sec)
+ 
+ 
+                                                 

@@ -1,6 +1,8 @@
-from scipy.integrate import odeint
+import pickle
+import subprocess
 import numpy as np
 from initialize_surrogate import Hypercube
+import os
 
 class Problem_Function(Hypercube):
     """
@@ -29,31 +31,11 @@ class Problem_Function(Hypercube):
             the anchor value.
         """
         
-        self.d = 5
-        self.mu = np.array([1.04e-2,     # 0  absorption 1
-                            1.10e-1,     # 1  absorption 2
-                            9.00e-3,     # 2  nufission 1
-                            1.91e-1,     # 3  nufission 2
-                            1.80e-2])    # 4  downscatter
-  
-        self.std = np.array([9.06e-5,
-                             2.31e-4,
-                             4.85e-5,
-                             8.87e-4,
-                             2.18e-4])
-        # Correlation matrix for inputs
-        self.corrmatrix = np.array([[ 1.00, 0.07,-0.13, 0.02, 0.75],
-                                    [ 0.07, 1.00, 0.06, 0.31,-0.07],
-                                    [-0.13, 0.06, 1.00, 0.33,-0.10],
-                                    [ 0.02, 0.31, 0.33, 1.00, 0.01],
-                                    [ 0.75,-0.07,-0.10, 0.01, 1.00]])
-        # Build covariance matrix for the inputs
-        s = self.std
-        covmatrix = np.zeros([5,5])
-        for i in range(0,self.d):
-            for j in range(0,self.d):
-                covmatrix[i,j] = self.corrmatrix[i,j]*s[i]*s[j]
-        self.covmatrix = covmatrix
+        self.d = 25
+        self.mu = pickle.load(open('mu.dat','rb'))
+        self.std = pickle.load(open('std.dat','rb'))
+        self.covmatrix = pickle.load(open('covmatrix.dat','rb'))
+        
         self.dactive = list(dactive)
         self.quad_type = quad_type
         
@@ -74,8 +56,98 @@ class Problem_Function(Hypercube):
             Function value at x.
         """     
 
-        # Return k-inf
-        return (x[1]*x[2] + x[4]*x[3])/(x[1]*(x[0] + x[4]))
+        # Write cross-section file
+        id_num, new_xsec_file = self._write_xsec_file(x)
+        
+        # Execute parcs with new xsec file
+        new_input_file = self._write_input_file(id_num)
+        
+        results = subprocess.check_output(['../parcs.x',new_input_file])   
+        keff = self._read_output_file(id_num)
+
+        os.chdir('../')
+        subprocess.call(['rm','-rf',id_num])
+        
+        return keff
+
+    def _read_output_file(self,id_num):
+        """
+        """
+        output_name = id_num + '.out'
+
+        output = open(output_name,'r')
+        for line in output:
+            if 'K-Effective:' in line:
+                keff = float(line.split()[1])
+                break
+                
+        output.close()
+
+        return keff
+
+    def _write_xsec_file(self,x):
+        """
+        """
+        
+        # make random string identifier
+        np.random.seed()
+        id_num = str(x[0])[-10] + str(np.random.randint(100000,999999))
+        # make sure directory doesn't already exist
+        while os.path.exists(id_num):
+            np.random.seed()
+            id_num = str(x[0])[-10] + str(np.random.randint(100000,999999))
+
+        # create new directory
+        subprocess.call(['mkdir',id_num])
+        os.chdir(id_num)
+
+        target_xsec_names = pickle.load(open('../target_xsec_names.dat','rb'))
+        xsec_template = open('../parcs.xsec','r')
+        new_xsec_file = 'parcs.xsec.' + id_num
+        xsec_new = open(new_xsec_file,'w')
+
+        for line in xsec_template:
+            for xsec_name, xsec in zip(target_xsec_names,x):
+                if xsec_name in line:
+                    line = line.replace(xsec_name,'%12.6E' %(xsec)) 
+            xsec_new.write(line)
+
+        xsec_new.close()
+        xsec_template.close()
+
+        return id_num, new_xsec_file
+
+    def _write_input_file(self,id_num):
+        """
+        """
+
+        input_template = open('../parcs.inp','r')
+        new_input_file = 'parcs.inp.' + id_num
+        input_new = open(new_input_file,'w')
+        new_xsec_file = 'parcs.xsec.' + id_num
+              
+        for line in input_template:
+            if 'file ./parcs.xsec.tmp' in line:
+                line = line.replace('parcs.xsec.tmp', new_xsec_file)
+            if 'CASEID' in line:
+                line = line.replace('tmi_minicore', id_num)
+            input_new.write(line)
+
+        input_template.close()
+        input_new.close()
+
+        return new_input_file
+    
+##P = Problem_Function(range(25),'cc')
+##x = np.random.multivariate_normal(P.mu,P.covmatrix)
+##P.evalf_unnormalized_x(x)
+
+
+
+
+
+
+
 
 
 
